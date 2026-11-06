@@ -1,12 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AppProvider } from "@/lib/store";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PathForge - Career GPS & Work Simulator",
+  title: {
+    default: "PathForge - Career GPS & Work Simulator",
+    template: "%s | PathForge",
+  },
   description:
-    "Navigate your career path with confidence. Get personalized roadmaps, realistic work simulations, and build your portfolio.",
+    "Temukan jalur karier yang tepat, ikuti roadmap belajar yang personal, latihan lewat simulasi kerja nyata, dan bangun portofolio yang dilirik perusahaan.",
   generator: "v0.app",
   icons: {
     icon: [
@@ -33,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-background" suppressHydrationWarning>
+    <html lang="id" className="bg-background" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"
@@ -41,7 +46,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AppProvider>
+            {children}
+            <Toaster richColors position="top-center" />
+          </AppProvider>
         </ThemeProvider>
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>

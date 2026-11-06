@@ -2,19 +2,22 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ArrowRight, LayoutDashboard, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useApp } from "@/lib/store";
 
 const navLinks = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How It Works" },
-  { href: "#careers", label: "Careers" },
-  { href: "#testimonials", label: "Testimonials" },
+  { href: "#features", label: "Fitur" },
+  { href: "#how-it-works", label: "Cara Kerja" },
+  { href: "#careers", label: "Jalur Karier" },
+  { href: "#testimonials", label: "Testimoni" },
 ];
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, ready } = useApp();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -37,24 +40,27 @@ export function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/auth/login">Log in</Link>
+            <Link href="/login">Log in</Link>
           </Button>
           <Button size="sm" asChild>
-            <Link href="/auth/register">Get Started</Link>
+            <Link href="/register">Get Started</Link>
           </Button>
         </div>
 
-        <button
-          className="md:hidden"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? (
-            <X className="h-6 w-6 text-foreground" />
-          ) : (
-            <Menu className="h-6 w-6 text-foreground" />
-          )}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle menu"
+            className="p-1"
+          >
+            {mobileOpen ? (
+              <X className="h-6 w-6 text-foreground" />
+            ) : (
+              <Menu className="h-6 w-6 text-foreground" />
+            )}
+          </button>
+        </div>
       </nav>
 
       {mobileOpen && (
@@ -72,10 +78,10 @@ export function Navbar() {
             ))}
             <div className="flex flex-col gap-2 pt-2">
               <Button variant="outline" size="sm" asChild>
-                <Link href="/auth/login">Log in</Link>
+                <Link href="/login">Log in</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/auth/register">Get Started</Link>
+                <Link href="/register">Get Started</Link>
               </Button>
             </div>
           </div>

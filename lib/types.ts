@@ -164,7 +164,11 @@ export type ActivityType =
   | "simulation"
   | "assessment"
   | "career"
-  | "profile";
+  | "profile"
+  | "job"
+  | "interview"
+  | "quiz"
+  | "scanner";
 
 export interface Activity {
   id: string;
@@ -180,6 +184,31 @@ export interface Settings {
   publicPortfolio: boolean;
 }
 
+export interface JobApplication {
+  jobId: string;
+  appliedAt: string;
+  status: "Terkirim" | "Ditinjau" | "Wawancara";
+}
+
+export interface InterviewPractice {
+  questionId: string;
+  answer: string;
+  practicedAt: string;
+  rating?: number;
+}
+
+export interface StudyPlan {
+  weeklyHours: number;
+  preferredDays: string[];
+  startDate?: string;
+}
+
+export interface DailyChallengeState {
+  lastCompletedDate?: string;
+  streakCount: number;
+  totalAnswered: number;
+}
+
 export interface UserData {
   profile: Profile;
   onboarded: boolean;
@@ -189,6 +218,11 @@ export interface UserData {
   submissions: Record<string, Submission>;
   drafts: Record<string, Record<string, string>>;
   featured: string[];
+  appliedJobs?: Record<string, JobApplication>;
+  interviewPractice?: Record<string, InterviewPractice>;
+  studyPlan?: StudyPlan;
+  dailyChallenge?: DailyChallengeState;
+  moduleNotes?: Record<string, string>;
   activity: Activity[];
   settings: Settings;
 }

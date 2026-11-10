@@ -51,19 +51,22 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);
 
-    setTimeout(() => {
-      updateProfile(profileForm);
-      updateAccount({ name: accountName, email: accountEmail });
-      setSavingProfile(false);
-      toast.success("Profil berhasil diperbarui!");
-    }, 400);
+    updateProfile(profileForm);
+    const accRes = await updateAccount({ name: accountName, email: accountEmail });
+    setSavingProfile(false);
+
+    if (!accRes.ok) {
+      toast.error(accRes.error || "Gagal memperbarui informasi akun.");
+      return;
+    }
+    toast.success("Profil & akun berhasil diperbarui di server!");
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword || !newPassword) {
       toast.error("Harap isi semua kolom kata sandi.");
@@ -79,18 +82,17 @@ export default function SettingsPage() {
     }
 
     setSavingPassword(true);
-    setTimeout(() => {
-      const res = changePassword(oldPassword, newPassword);
-      setSavingPassword(false);
-      if (res.ok) {
-        toast.success("Kata sandi berhasil diubah!");
-        setOldPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      } else {
-        toast.error(res.error || "Gagal mengubah kata sandi.");
-      }
-    }, 500);
+    const res = await changePassword(oldPassword, newPassword);
+    setSavingPassword(false);
+
+    if (res.ok) {
+      toast.success("Kata sandi berhasil diubah di server!");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } else {
+      toast.error(res.error || "Gagal mengubah kata sandi.");
+    }
   };
 
   const handleReset = () => {
@@ -100,10 +102,10 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm("PERINGATAN: Akun ini beserta seluruh datanya akan dihapus permanen. Lanjutkan?")) {
-      deleteAccount();
-      toast.info("Akun berhasil dihapus.");
+      await deleteAccount();
+      toast.info("Akun berhasil dihapus dari server.");
       router.replace("/");
     }
   };

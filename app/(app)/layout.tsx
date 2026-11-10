@@ -7,6 +7,7 @@ import { Flame, Zap } from "lucide-react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar, navItems } from "@/components/app/app-sidebar";
+import { CommandPalette } from "@/components/app/command-palette";
 import { FullPageLoader } from "@/components/app/shared";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useApp } from "@/lib/store";
@@ -42,6 +43,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Separator orientation="vertical" className="mr-2 !h-4" />
           <span className="truncate text-sm font-medium text-foreground">{current}</span>
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <CommandPalette />
             <Link
               href="/progress"
               className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted sm:flex"

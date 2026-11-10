@@ -36,7 +36,7 @@ export default function RegisterPage() {
 
   const strength = passwordStrength(form.password);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: Record<string, string> = {};
     if (form.name.trim().length < 2) next.name = "Nama minimal 2 karakter.";
@@ -48,15 +48,13 @@ export default function RegisterPage() {
     if (Object.keys(next).length) return;
 
     setLoading(true);
-    setTimeout(() => {
-      const res = register({ name: form.name, email: form.email, password: form.password });
-      setLoading(false);
-      if (!res.ok) {
-        setErrors({ form: res.error });
-        return;
-      }
-      toast.success("Akun berhasil dibuat! Yuk, kenali dirimu dulu.");
-    }, 600);
+    const res = await register({ name: form.name, email: form.email, password: form.password });
+    setLoading(false);
+    if (!res.ok) {
+      setErrors({ form: res.error });
+      return;
+    }
+    toast.success("Akun berhasil dibuat! Yuk, kenali dirimu dulu.");
   };
 
   return (

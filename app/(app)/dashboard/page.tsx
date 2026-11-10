@@ -1,14 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   BriefcaseBusiness,
+  Building2,
+  Calculator,
   CheckCircle2,
+  Circle,
   Compass,
+  FileSearch,
   Flame,
   FolderKanban,
+  Layers,
+  ListChecks,
+  MessageSquareQuote,
   Play,
   Sparkles,
   Trophy,
@@ -18,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, ScoreRing, StatCard } from "@/components/app/shared";
+import { DailyChallengeModal } from "@/components/app/daily-challenge-modal";
 import { useApp } from "@/lib/store";
 import { getCareer } from "@/lib/data/careers";
 import { getSimulationsByCareer } from "@/lib/data/simulations";
@@ -45,8 +54,65 @@ export default function DashboardPage() {
   const level = getLevel(xp);
   const streak = getStreak(data);
 
+  const [challengeOpen, setChallengeOpen] = useState(false);
+  const [showQuests, setShowQuests] = useState(true);
+  const isTodayQuizDone =
+    data.dailyChallenge?.lastCompletedDate === new Date().toISOString().split("T")[0];
+
+  // Checklist Misi Pengguna Baru (Starter Quests)
+  const starterQuests = [
+    {
+      id: "quest-onboarding",
+      title: "Selesaikan Asesmen Career GPS",
+      desc: "Petakan minat, gaya kerja, dan dapatkan rekomendasi jalur karier terbaik.",
+      done: data.onboarded,
+      href: "/onboarding",
+      cta: "Ambil Asesmen",
+    },
+    {
+      id: "quest-first-module",
+      title: "Tuntaskan Modul Belajar Pertama",
+      desc: "Centang minimal 1 modul di Roadmap dan tulis catatan belajar pribadimu.",
+      done: data.completedModules.length > 0,
+      href: "/roadmap",
+      cta: "Buka Roadmap",
+    },
+    {
+      id: "quest-first-sim",
+      title: "Kerjakan 1 Tantangan Work Simulator",
+      desc: "Rasakan skenario kasus nyata perusahaan teknologi Indonesia & raih skor.",
+      done: Object.keys(data.submissions).length > 0,
+      href: "/simulator",
+      cta: "Coba Simulator",
+    },
+    {
+      id: "quest-pin-portfolio",
+      title: "Pajang Proyek Terbaik di Portofolio",
+      desc: "Sematkan (pin) hasil simulasi kerjamu agar tampil di halaman CV publik.",
+      done: data.featured.length > 0,
+      href: "/portfolio",
+      cta: "Atur Portofolio",
+    },
+    {
+      id: "quest-career-ready",
+      title: "Latihan Wawancara STAR atau Lamar Kerja",
+      desc: "Jawab 1 soal Mock Interview rekruter atau kirim 1-klik lamaran kerja.",
+      done:
+        Object.keys(data.interviewPractice || {}).length > 0 ||
+        Object.keys(data.appliedJobs || {}).length > 0,
+      href: "/interview",
+      cta: "Mulai Latihan",
+    },
+  ];
+  const completedQuestsCount = starterQuests.filter((q) => q.done).length;
+  const questsProgressPercent = Math.round(
+    (completedQuestsCount / starterQuests.length) * 100
+  );
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
+      <DailyChallengeModal isOpen={challengeOpen} onClose={() => setChallengeOpen(false)} />
+
       <PageHeader
         title={`Halo, ${user?.name.split(" ")[0]}! 👋`}
         description={
@@ -71,6 +137,137 @@ export default function DashboardPage() {
           </div>
         }
       />
+
+      {/* Banner Tantangan Kuis Kilat Harian & Streak */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-orange-500/30 bg-gradient-to-r from-orange-500/10 via-orange-500/5 to-transparent p-5">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-md shadow-orange-500/20">
+            <Flame className="h-6 w-6 fill-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-sm text-foreground">
+                Tantangan Kuis Kilat Hari Ini
+              </h3>
+              {isTodayQuizDone ? (
+                <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px]">
+                  ✓ Selesai (+25 XP)
+                </Badge>
+              ) : (
+                <Badge variant="default" className="bg-orange-500 text-white text-[10px]">
+                  +25 XP Belum Diambil
+                </Badge>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Uji 3 soal mikro harian seputar {career?.title || "teknologi"} untuk menjaga streak {streak} harimu!
+            </p>
+          </div>
+        </div>
+
+        <Button
+          size="sm"
+          onClick={() => setChallengeOpen(true)}
+          className="shrink-0 gap-1.5 bg-orange-500 hover:bg-orange-600 text-white"
+        >
+          <Zap className="h-4 w-4" />
+          {isTodayQuizDone ? "Latihan Lagi" : "Mulai Kuis Kilat"}
+        </Button>
+      </div>
+
+      {/* Checklist Misi Pengguna Baru (Starter Quests) */}
+      <div className="rounded-2xl border border-primary/25 bg-card p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ListChecks className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-[family-name:var(--font-heading)] text-sm font-bold text-foreground">
+                  Misi Pengguna Baru (Starter Quests)
+                </h3>
+                <Badge
+                  variant={completedQuestsCount === starterQuests.length ? "default" : "secondary"}
+                  className="text-[10px]"
+                >
+                  {completedQuestsCount} / {starterQuests.length} Selesai
+                </Badge>
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Ikuti 5 langkah terarah ini untuk memaksimalkan kesiapan karier dan portofolio publikmu.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 w-36">
+              <Progress value={questsProgressPercent} className="h-2" />
+              <span className="text-xs font-bold text-primary">{questsProgressPercent}%</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-8"
+              onClick={() => setShowQuests((prev) => !prev)}
+            >
+              {showQuests ? "Sembunyikan" : "Tampilkan Misi"}
+            </Button>
+          </div>
+        </div>
+
+        {showQuests && (
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5 border-t border-border pt-4">
+            {starterQuests.map((quest, idx) => (
+              <div
+                key={quest.id}
+                className={`flex flex-col justify-between rounded-xl border p-3.5 transition-all ${
+                  quest.done
+                    ? "border-success/30 bg-success/5"
+                    : "border-border bg-background/60 hover:border-primary/40"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Misi 0{idx + 1}
+                    </span>
+                    {quest.done ? (
+                      <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                    )}
+                  </div>
+                  <h4
+                    className={`mt-1.5 text-xs font-bold leading-snug ${
+                      quest.done ? "line-through text-muted-foreground" : "text-foreground"
+                    }`}
+                  >
+                    {quest.title}
+                  </h4>
+                  <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                    {quest.desc}
+                  </p>
+                </div>
+
+                <div className="mt-3 pt-2 border-t border-border/60">
+                  {quest.done ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-success">
+                      ✓ Misi Tuntas
+                    </span>
+                  ) : (
+                    <Button asChild size="sm" variant="outline" className="w-full h-7 text-[11px]">
+                      <Link href={quest.href}>
+                        {quest.cta} <ArrowRight className="ml-1 h-3 w-3" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Grid Statistik Utama */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -275,6 +472,109 @@ export default function DashboardPage() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Grid Akses Cepat Tambahan: 5 Fitur Unggulan */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Card 1: Job Match */}
+        <div className="flex flex-col justify-between rounded-2xl border border-primary/20 bg-primary/5 p-5">
+          <div>
+            <div className="flex items-center gap-2 text-primary font-bold text-xs">
+              <Building2 className="h-4 w-4" /> Peluang Kerja
+            </div>
+            <h4 className="mt-2 font-[family-name:var(--font-heading)] text-sm font-bold text-foreground">
+              Lowongan Cocok
+            </h4>
+            <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              Kirim portofolio PathForge dalam 1-klik ke perusahaan tech.
+            </p>
+          </div>
+          <div className="mt-4 pt-2">
+            <Button asChild size="sm" variant="outline" className="w-full text-xs h-8">
+              <Link href="/jobs">Buka Lowongan</Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Card 2: Mock Interview */}
+        <div className="flex flex-col justify-between rounded-2xl border border-warning/20 bg-warning/5 p-5">
+          <div>
+            <div className="flex items-center gap-2 text-warning font-bold text-xs">
+              <MessageSquareQuote className="h-4 w-4" /> Mock Interview
+            </div>
+            <h4 className="mt-2 font-[family-name:var(--font-heading)] text-sm font-bold text-foreground">
+              Latihan Wawancara
+            </h4>
+            <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              Metode STAR, timer rekruter, dan kunci jawaban standar emas.
+            </p>
+          </div>
+          <div className="mt-4 pt-2">
+            <Button asChild size="sm" variant="outline" className="w-full text-xs h-8">
+              <Link href="/interview">Mulai Wawancara</Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Card 3: Resume Scanner */}
+        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5">
+          <div>
+            <div className="flex items-center gap-2 text-primary font-bold text-xs">
+              <FileSearch className="h-4 w-4" /> CV Skill Scanner
+            </div>
+            <h4 className="mt-2 font-[family-name:var(--font-heading)] text-sm font-bold text-foreground">
+              Deteksi Skill Gap CV
+            </h4>
+            <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              Pindai CV-mu dan otomatis lewati modul yang sudah dikuasai.
+            </p>
+          </div>
+          <div className="mt-4 pt-2">
+            <Button asChild size="sm" variant="outline" className="w-full text-xs h-8">
+              <Link href="/scanner">Pindai Resume</Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Card 4: Career Compare */}
+        <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5">
+          <div>
+            <div className="flex items-center gap-2 text-primary font-bold text-xs">
+              <Layers className="h-4 w-4" /> Compare Tool
+            </div>
+            <h4 className="mt-2 font-[family-name:var(--font-heading)] text-sm font-bold text-foreground">
+              Bandingkan Karier
+            </h4>
+            <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              Komparasi gaji, durasi belajar, dan prospek karier berdampingan.
+            </p>
+          </div>
+          <div className="mt-4 pt-2">
+            <Button asChild size="sm" variant="outline" className="w-full text-xs h-8">
+              <Link href="/careers/compare">Bandingkan</Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Card 5: Salary & THP Calculator */}
+        <div className="flex flex-col justify-between rounded-2xl border border-success/20 bg-success/5 p-5">
+          <div>
+            <div className="flex items-center gap-2 text-success font-bold text-xs">
+              <Calculator className="h-4 w-4" /> Kalkulator Gaji
+            </div>
+            <h4 className="mt-2 font-[family-name:var(--font-heading)] text-sm font-bold text-foreground">
+              Simulasi THP & Pajak
+            </h4>
+            <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              Hitung gaji bersih (THP), potongan PPh 21, BPJS, & proyeksi 5 tahun.
+            </p>
+          </div>
+          <div className="mt-4 pt-2">
+            <Button asChild size="sm" variant="outline" className="w-full text-xs h-8">
+              <Link href="/calculator">Hitung Gaji</Link>
+            </Button>
           </div>
         </div>
       </div>

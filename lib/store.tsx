@@ -8,6 +8,7 @@ import type {
   CareerId,
   Profile,
   Settings,
+  StudyPlan,
   Submission,
   User,
   UserData,
@@ -16,46 +17,21 @@ import { careers, getAllModules, getCareer } from "@/lib/data/careers";
 import { getSimulation } from "@/lib/data/simulations";
 import { calculateScores } from "@/lib/data/assessment";
 import { evaluateSubmission } from "@/lib/feedback";
+import {
+  buildDemoData,
+  createEmptyData,
+  DEMO_EMAIL,
+  DEMO_PASSWORD,
+  normalizeUserData,
+} from "@/lib/seed-data";
+
+export { createEmptyData, DEMO_EMAIL, DEMO_PASSWORD };
 
 const USERS_KEY = "pathforge:users";
 const SESSION_KEY = "pathforge:session";
 const dataKey = (id: string) => `pathforge:data:${id}`;
 
-export const DEMO_EMAIL = "demo@pathforge.id";
-export const DEMO_PASSWORD = "demo1234";
-
-const defaultProfile: Profile = {
-  headline: "",
-  bio: "",
-  location: "",
-  education: "",
-  status: "fresh-graduate",
-  weeklyHours: 10,
-  linkedin: "",
-  github: "",
-  website: "",
-};
-
-const defaultSettings: Settings = {
-  emailNotifications: true,
-  weeklyReminder: true,
-  publicPortfolio: false,
-};
-
-export function createEmptyData(): UserData {
-  return {
-    profile: { ...defaultProfile },
-    onboarded: false,
-    assessment: null,
-    activeCareer: null,
-    completedModules: [],
-    submissions: {},
-    drafts: {},
-    featured: [],
-    activity: [],
-    settings: { ...defaultSettings },
-  };
-}
+type PublicUser = Omit<User, "password">;
 
 function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -72,6 +48,7 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function write(key: string, value: unknown) {
+  if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
@@ -79,102 +56,28 @@ function write(key: string, value: unknown) {
   }
 }
 
-function normalize(data: Partial<UserData> | null): UserData {
-  const empty = createEmptyData();
-  if (!data) return empty;
-  return {
-    ...empty,
-    ...data,
-    profile: { ...empty.profile, ...(data.profile ?? {}) },
-    settings: { ...empty.settings, ...(data.settings ?? {}) },
-  };
-}
-
 function makeActivity(type: ActivityType, label: string, xp: number, date?: Date): Activity {
   return { id: uid(), type, label, xp, date: (date ?? new Date()).toISOString() };
 }
 
-/* ---------------- Demo seed ---------------- */
-
-function buildDemoData(): UserData {
-  const data = createEmptyData();
-  const daysAgo = (n: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() - n);
-    d.setHours(10 + (n % 8), 15, 0, 0);
-    return d;
-  };
-
-  const answers = { q1: "a", q2: "a", q3: "d", q4: "a", q5: "b", q6: "a", q7: "c", q8: "b" };
-  data.assessment = {
-    completedAt: daysAgo(20).toISOString(),
-    answers,
-    scores: calculateScores(answers),
-  };
-  data.onboarded = true;
-  data.activeCareer = "web-developer";
-  data.profile = {
-    ...data.profile,
-    headline: "Aspiring Frontend Developer",
-    bio: "Lulusan Sistem Informasi yang senang membangun antarmuka web yang cepat dan mudah diakses.",
-    location: "Bandung, Jawa Barat",
-    education: "S1 Sistem Informasi, Universitas Contoh",
-    status: "fresh-graduate",
-    weeklyHours: 15,
-    github: "https://github.com/demo",
-    linkedin: "https://linkedin.com/in/demo",
-  };
-  data.activity.push(makeActivity("assessment", "Menyelesaikan asesmen Career GPS", 50, daysAgo(20)));
-  data.activity.push(makeActivity("career", "Memilih jalur Web Developer", 0, daysAgo(20)));
-
-  const career = getCareer("web-developer")!;
-  const modules = getAllModules(career).slice(0, 6);
-  const dayPlan = [18, 15, 12, 9, 5, 2];
-  modules.forEach((m, i) => {
-    data.completedModules.push(m.id);
-    data.activity.push(makeActivity("module", `Menyelesaikan modul "${m.title}"`, m.hours * 10, daysAgo(dayPlan[i])));
-  });
-
-  const sim = getSimulation("sim-wd-landing")!;
-  const simAnswers = {
-    link: "https://github.com/demo/promo-ramadan",
-    explanation:
-      "Saya memulai dengan pendekatan mobile-first karena mayoritas traffic berasal dari HP. Layout menggunakan CSS grid untuk daftar produk dan flexbox untuk hero, dengan media query di breakpoint 768px dan 1024px sehingga tampilan responsif. Struktur HTML semantik memakai header, main, section, dan footer, serta setiap gambar memiliki atribut alt dan tombol diberi aria-label agar aksesibel. Countdown dibuat dengan JavaScript menggunakan objek Date dan setInterval setiap detik; fungsi akan menampilkan pesan 'Promo berakhir' ketika selisih waktu bernilai negatif. Untuk performa, gambar dikompres ke format WebP dan memakai lazy loading sehingga skor Lighthouse mencapai 96.",
-  };
-  const result = evaluateSubmission(sim, simAnswers);
-  data.submissions[sim.id] = {
-    simulationId: sim.id,
-    answers: simAnswers,
-    ...result,
-    submittedAt: daysAgo(4).toISOString(),
-    attempts: 1,
-  };
-  data.featured.push(sim.id);
-  data.activity.push(
-    makeActivity("simulation", `Mengirim simulasi "${sim.title}" (skor ${result.score})`, Math.round((sim.xp * result.score) / 100), daysAgo(4))
-  );
-  data.activity.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  return data;
-}
-
 /* ---------------- Context ---------------- */
 
-interface AuthResult {
+export interface AuthResult {
   ok: boolean;
   error?: string;
 }
 
 interface AppContextValue {
   ready: boolean;
-  user: Omit<User, "password"> | null;
+  user: PublicUser | null;
   data: UserData;
-  register: (input: { name: string; email: string; password: string }) => AuthResult;
-  login: (email: string, password: string) => AuthResult;
-  loginDemo: () => void;
-  logout: () => void;
-  updateAccount: (input: { name?: string; email?: string }) => AuthResult;
-  changePassword: (current: string, next: string) => AuthResult;
-  deleteAccount: () => void;
+  register: (input: { name: string; email: string; password: string }) => Promise<AuthResult>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  loginDemo: () => Promise<AuthResult>;
+  logout: () => Promise<void>;
+  updateAccount: (input: { name?: string; email?: string }) => Promise<AuthResult>;
+  changePassword: (current: string, next: string) => Promise<AuthResult>;
+  deleteAccount: () => Promise<void>;
   saveAssessment: (answers: Record<string, string>, profile: Partial<Profile>) => AssessmentResult;
   completeOnboarding: (careerId: CareerId) => void;
   setActiveCareer: (careerId: CareerId) => void;
@@ -184,6 +87,12 @@ interface AppContextValue {
   toggleFeatured: (simulationId: string) => void;
   updateProfile: (patch: Partial<Profile>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
+  applyJob: (jobId: string, jobTitle: string, companyName: string) => void;
+  saveInterviewPractice: (questionId: string, answer: string, rating?: number) => void;
+  syncScannedModules: (moduleIds: string[]) => number;
+  saveStudyPlan: (plan: StudyPlan) => void;
+  completeDailyChallenge: (xpEarned: number) => void;
+  saveModuleNote: (moduleId: string, note: string) => void;
   resetProgress: () => void;
 }
 
@@ -191,129 +100,280 @@ const AppContext = React.createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = React.useState(false);
-  const [user, setUser] = React.useState<User | null>(null);
+  const [user, setUser] = React.useState<PublicUser | null>(null);
   const [data, setData] = React.useState<UserData>(createEmptyData);
 
+  // Sinkronisasi sesi dari Backend HTTP-Only Cookie saat aplikasi dimuat
   React.useEffect(() => {
-    const sessionId = read<string | null>(SESSION_KEY, null);
-    if (sessionId) {
-      const users = read<User[]>(USERS_KEY, []);
-      const found = users.find((u) => u.id === sessionId);
-      if (found) {
-        setUser(found);
-        setData(normalize(read<UserData | null>(dataKey(found.id), null)));
+    let active = true;
+
+    async function hydrateSession() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (res.ok) {
+          const payload = (await res.json()) as {
+            authenticated: boolean;
+            user: PublicUser | null;
+            data: UserData | null;
+          };
+
+          if (active && payload.authenticated && payload.user) {
+            const normalized = normalizeUserData(payload.data);
+            setUser(payload.user);
+            setData(normalized);
+            write(SESSION_KEY, payload.user.id);
+            write(dataKey(payload.user.id), normalized);
+            setReady(true);
+            return;
+          }
+        }
+      } catch {
+        // Fallback ke localStorage jika sedang offline
+        const sessionId = read<string | null>(SESSION_KEY, null);
+        if (sessionId && active) {
+          const users = read<User[]>(USERS_KEY, []);
+          const found = users.find((u) => u.id === sessionId);
+          if (found) {
+            setUser({
+              id: found.id,
+              name: found.name,
+              email: found.email,
+              createdAt: found.createdAt,
+            });
+            setData(normalizeUserData(read<UserData | null>(dataKey(found.id), null)));
+          }
+        }
+      }
+
+      if (active) {
+        setReady(true);
       }
     }
-    setReady(true);
+
+    hydrateSession();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const syncDataToServer = React.useCallback((nextData: UserData) => {
+    fetch("/api/user/data", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ data: nextData }),
+    }).catch(() => {
+      /* abaikan error jaringan sementara, data tetap tersimpan di localStorage */
+    });
   }, []);
 
   const commit = React.useCallback(
     (updater: (prev: UserData) => UserData) => {
       setData((prev) => {
         const next = updater(prev);
-        if (user) write(dataKey(user.id), next);
+        if (user) {
+          write(dataKey(user.id), next);
+          syncDataToServer(next);
+        }
         return next;
       });
     },
-    [user]
+    [user, syncDataToServer]
   );
 
-  const startSession = (u: User, d: UserData) => {
+  const startSession = (u: PublicUser, d: UserData) => {
+    const normalized = normalizeUserData(d);
     write(SESSION_KEY, u.id);
+    write(dataKey(u.id), normalized);
     setUser(u);
-    setData(d);
+    setData(normalized);
   };
 
-  const register: AppContextValue["register"] = ({ name, email, password }) => {
-    const users = read<User[]>(USERS_KEY, []);
-    const normalized = email.trim().toLowerCase();
-    if (users.some((u) => u.email === normalized)) {
-      return { ok: false, error: "Email sudah terdaftar. Silakan masuk." };
+  const register: AppContextValue["register"] = async ({ name, email, password }) => {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const payload = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        user?: PublicUser;
+        data?: UserData;
+      };
+
+      if (!res.ok || !payload.ok || !payload.user) {
+        return { ok: false, error: payload.error || "Gagal mendaftarkan akun." };
+      }
+
+      startSession(payload.user, payload.data ?? createEmptyData());
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "Gagal terhubung ke server. Periksa koneksi kamu." };
     }
-    const newUser: User = {
-      id: uid(),
-      name: name.trim(),
-      email: normalized,
-      password,
-      createdAt: new Date().toISOString(),
-    };
-    write(USERS_KEY, [...users, newUser]);
-    const d = createEmptyData();
-    write(dataKey(newUser.id), d);
-    startSession(newUser, d);
-    return { ok: true };
   };
 
-  const login: AppContextValue["login"] = (email, password) => {
-    const users = read<User[]>(USERS_KEY, []);
-    const found = users.find((u) => u.email === email.trim().toLowerCase());
-    if (!found || found.password !== password) {
-      return { ok: false, error: "Email atau kata sandi salah." };
+  const login: AppContextValue["login"] = async (email, password) => {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const payload = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        user?: PublicUser;
+        data?: UserData;
+      };
+
+      if (!res.ok || !payload.ok || !payload.user) {
+        return { ok: false, error: payload.error || "Email atau kata sandi salah." };
+      }
+
+      startSession(payload.user, payload.data ?? createEmptyData());
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "Gagal terhubung ke server autentikasi." };
     }
-    startSession(found, normalize(read<UserData | null>(dataKey(found.id), null)));
-    return { ok: true };
   };
 
-  const loginDemo = () => {
-    const users = read<User[]>(USERS_KEY, []);
-    let demo = users.find((u) => u.email === DEMO_EMAIL);
-    if (!demo) {
-      demo = {
+  const loginDemo: AppContextValue["loginDemo"] = async () => {
+    try {
+      const res = await fetch("/api/auth/demo", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const payload = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        user?: PublicUser;
+        data?: UserData;
+      };
+
+      if (res.ok && payload.ok && payload.user) {
+        startSession(payload.user, payload.data ?? buildDemoData());
+        return { ok: true };
+      }
+      return { ok: false, error: payload.error || "Gagal masuk ke akun demo." };
+    } catch {
+      // Fallback lokal jika server tidak terjangkau
+      const demoUser: PublicUser = {
         id: "demo-user",
-        name: "Rina Pratama",
+        name: "Raka Pratama",
         email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
         createdAt: new Date().toISOString(),
       };
-      write(USERS_KEY, [...users, demo]);
+      const d = buildDemoData();
+      startSession(demoUser, d);
+      return { ok: true };
     }
-    let d = read<UserData | null>(dataKey(demo.id), null);
-    if (!d) {
-      d = buildDemoData();
-      write(dataKey(demo.id), d);
-    }
-    startSession(demo, normalize(d));
   };
 
-  const logout = () => {
-    window.localStorage.removeItem(SESSION_KEY);
+  const logout: AppContextValue["logout"] = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      /* abaikan error jaringan */
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(SESSION_KEY);
+    }
     setUser(null);
     setData(createEmptyData());
   };
 
-  const updateAccount: AppContextValue["updateAccount"] = (input) => {
+  const updateAccount: AppContextValue["updateAccount"] = async (input) => {
     if (!user) return { ok: false, error: "Tidak ada sesi aktif." };
-    const users = read<User[]>(USERS_KEY, []);
-    const email = input.email?.trim().toLowerCase();
-    if (email && email !== user.email && users.some((u) => u.email === email)) {
-      return { ok: false, error: "Email sudah digunakan akun lain." };
+    try {
+      const res = await fetch("/api/auth/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          type: "profile",
+          name: input.name,
+          email: input.email,
+        }),
+      });
+
+      const payload = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        user?: PublicUser;
+      };
+
+      if (!res.ok || !payload.ok || !payload.user) {
+        return { ok: false, error: payload.error || "Gagal memperbarui akun." };
+      }
+
+      setUser(payload.user);
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "Gagal menghubungi server saat menyimpan akun." };
     }
-    const updated: User = {
-      ...user,
-      name: input.name?.trim() || user.name,
-      email: email || user.email,
-    };
-    write(USERS_KEY, users.map((u) => (u.id === user.id ? updated : u)));
-    setUser(updated);
-    return { ok: true };
   };
 
-  const changePassword: AppContextValue["changePassword"] = (current, next) => {
+  const changePassword: AppContextValue["changePassword"] = async (currentPassword, newPassword) => {
     if (!user) return { ok: false, error: "Tidak ada sesi aktif." };
-    if (user.password !== current) return { ok: false, error: "Kata sandi saat ini salah." };
-    const users = read<User[]>(USERS_KEY, []);
-    const updated = { ...user, password: next };
-    write(USERS_KEY, users.map((u) => (u.id === user.id ? updated : u)));
-    setUser(updated);
-    return { ok: true };
+    try {
+      const res = await fetch("/api/auth/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          type: "password",
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const payload = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+      };
+
+      if (!res.ok || !payload.ok) {
+        return { ok: false, error: payload.error || "Gagal mengubah kata sandi." };
+      }
+
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "Gagal menghubungi server untuk mengubah kata sandi." };
+    }
   };
 
-  const deleteAccount = () => {
+  const deleteAccount: AppContextValue["deleteAccount"] = async () => {
     if (!user) return;
-    const users = read<User[]>(USERS_KEY, []);
-    write(USERS_KEY, users.filter((u) => u.id !== user.id));
-    window.localStorage.removeItem(dataKey(user.id));
-    logout();
+    const currentId = user.id;
+    try {
+      await fetch("/api/auth/account", {
+        method: "DELETE",
+        credentials: "include",
+      });
+    } catch {
+      /* abaikan error jaringan */
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(dataKey(currentId));
+      window.localStorage.removeItem(SESSION_KEY);
+    }
+    setUser(null);
+    setData(createEmptyData());
   };
 
   const saveAssessment: AppContextValue["saveAssessment"] = (answers, profile) => {
@@ -418,6 +478,99 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     commit((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }));
   };
 
+  const applyJob = (jobId: string, jobTitle: string, companyName: string) => {
+    commit((prev) => ({
+      ...prev,
+      appliedJobs: {
+        ...(prev.appliedJobs ?? {}),
+        [jobId]: {
+          jobId,
+          appliedAt: new Date().toISOString(),
+          status: "Terkirim",
+        },
+      },
+      activity: [
+        makeActivity("job", `Melamar posisi ${jobTitle} di ${companyName}`, 25),
+        ...prev.activity,
+      ],
+    }));
+  };
+
+  const saveInterviewPractice = (questionId: string, answer: string, rating?: number) => {
+    commit((prev) => ({
+      ...prev,
+      interviewPractice: {
+        ...(prev.interviewPractice ?? {}),
+        [questionId]: {
+          questionId,
+          answer,
+          practicedAt: new Date().toISOString(),
+          rating,
+        },
+      },
+      activity: [
+        makeActivity("interview", `Latihan simulasi wawancara pertanyaan #${questionId}`, 15),
+        ...prev.activity,
+      ],
+    }));
+  };
+
+  const syncScannedModules = (moduleIds: string[]): number => {
+    let newlyAdded = 0;
+    commit((prev) => {
+      const existing = new Set(prev.completedModules);
+      const toAdd = moduleIds.filter((id) => !existing.has(id));
+      newlyAdded = toAdd.length;
+      if (newlyAdded === 0) return prev;
+      return {
+        ...prev,
+        completedModules: [...prev.completedModules, ...toAdd],
+        activity: [
+          makeActivity("scanner", `Sinkronisasi ${newlyAdded} modul dari hasil scan CV`, newlyAdded * 20),
+          ...prev.activity,
+        ],
+      };
+    });
+    return newlyAdded;
+  };
+
+  const saveStudyPlan = (plan: StudyPlan) => {
+    commit((prev) => ({
+      ...prev,
+      studyPlan: plan,
+      profile: {
+        ...prev.profile,
+        weeklyHours: plan.weeklyHours,
+      },
+    }));
+  };
+
+  const completeDailyChallenge = (xpEarned: number) => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    commit((prev) => ({
+      ...prev,
+      dailyChallenge: {
+        lastCompletedDate: todayStr,
+        streakCount: (prev.dailyChallenge?.streakCount ?? 0) + 1,
+        totalAnswered: (prev.dailyChallenge?.totalAnswered ?? 0) + 1,
+      },
+      activity: [
+        makeActivity("quiz", `Menyelesaikan Tantangan Kuis Kilat Harian (+${xpEarned} XP)`, xpEarned),
+        ...prev.activity,
+      ],
+    }));
+  };
+
+  const saveModuleNote = (moduleId: string, note: string) => {
+    commit((prev) => ({
+      ...prev,
+      moduleNotes: {
+        ...(prev.moduleNotes ?? {}),
+        [moduleId]: note,
+      },
+    }));
+  };
+
   const resetProgress = () => {
     commit((prev) => ({
       ...prev,
@@ -425,17 +578,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       submissions: {},
       drafts: {},
       featured: [],
+      appliedJobs: {},
+      interviewPractice: {},
+      moduleNotes: {},
+      dailyChallenge: {
+        streakCount: 0,
+        totalAnswered: 0,
+      },
       activity: [],
     }));
   };
 
-  const publicUser = user
-    ? { id: user.id, name: user.name, email: user.email, createdAt: user.createdAt }
-    : null;
-
   const value: AppContextValue = {
     ready,
-    user: publicUser,
+    user,
     data,
     register,
     login,
@@ -453,6 +609,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleFeatured,
     updateProfile,
     updateSettings,
+    applyJob,
+    saveInterviewPractice,
+    syncScannedModules,
+    saveStudyPlan,
+    completeDailyChallenge,
+    saveModuleNote,
     resetProgress,
   };
 

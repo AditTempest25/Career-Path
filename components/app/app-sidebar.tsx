@@ -5,12 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   BriefcaseBusiness,
+  Building2,
+  Calculator,
   ChevronsUpDown,
   Compass,
+  FileSearch,
   FolderKanban,
   LayoutDashboard,
   LogOut,
   Map,
+  MessageSquareQuote,
   Settings,
   User as UserIcon,
 } from "lucide-react";
@@ -46,9 +50,13 @@ import { getRoadmapProgress, initials } from "@/lib/progress";
 export const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/careers", label: "Career GPS", icon: Compass },
+  { href: "/scanner", label: "Scan CV & Gap", icon: FileSearch },
+  { href: "/calculator", label: "Kalkulator Gaji", icon: Calculator },
   { href: "/roadmap", label: "Roadmap", icon: Map },
   { href: "/simulator", label: "Work Simulator", icon: BriefcaseBusiness },
   { href: "/portfolio", label: "Portofolio", icon: FolderKanban },
+  { href: "/jobs", label: "Peluang Kerja", icon: Building2 },
+  { href: "/interview", label: "Mock Interview", icon: MessageSquareQuote },
   { href: "/progress", label: "Progres", icon: BarChart3 },
 ];
 

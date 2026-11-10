@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Compass, Filter, Sparkles, Trophy } from "lucide-react";
+import { Check, Compass, Filter, Layers, Sparkles, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,12 +36,20 @@ export default function CareersPage() {
         title="Career GPS & Katalog Jalur"
         description="Eksplorasi seluruh jalur karier teknologi terpopuler di Indonesia, lengkap dengan roadmap dan estimasi gaji."
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/onboarding">
-              <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
-              Ulangi Asesmen Minat
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link href="/careers/compare">
+                <Layers className="h-4 w-4 text-primary" />
+                Bandingkan Jalur Karier
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/onboarding">
+                <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
+                Ulangi Asesmen
+              </Link>
+            </Button>
+          </div>
         }
       />
 

@@ -37,14 +37,16 @@ export function HeroSection() {
           {/* CTAs */}
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" className="gap-2 px-8" asChild>
-              <Link href="/auth/register">
+              <Link href="/register">
                 Start Your Journey
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
-            <Button variant="outline" size="lg" className="gap-2 px-8">
-              <Play className="h-4 w-4" />
-              Watch Demo
+            <Button variant="outline" size="lg" className="gap-2 px-8" asChild>
+              <Link href="/login">
+                <Play className="h-4 w-4" />
+                Watch Demo
+              </Link>
             </Button>
           </div>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, LayoutDashboard, Menu, X } from "lucide-react";
+import { LayoutDashboard, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -39,12 +39,23 @@ export function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link href="/register">Get Started</Link>
-          </Button>
+          <ThemeToggle />
+          {ready && user ? (
+            <Button size="sm" asChild className="gap-2">
+              <Link href="/dashboard">
+                <LayoutDashboard className="h-4 w-4" /> Ke Dashboard
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/login">Masuk</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/register">Mulai Gratis</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
@@ -76,13 +87,21 @@ export function Navbar() {
                 {link.label}
               </a>
             ))}
-            <div className="flex flex-col gap-2 pt-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/login">Log in</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/register">Get Started</Link>
-              </Button>
+            <div className="flex flex-col gap-2 pt-2 border-t border-border">
+              {ready && user ? (
+                <Button size="sm" asChild className="w-full">
+                  <Link href="/dashboard">Ke Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" asChild className="w-full">
+                    <Link href="/login">Masuk</Link>
+                  </Button>
+                  <Button size="sm" asChild className="w-full">
+                    <Link href="/register">Mulai Gratis</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

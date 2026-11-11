@@ -26,7 +26,7 @@ export function CTASection() {
                 className="gap-2 px-8"
                 asChild
               >
-                <Link href="/auth/register">
+                <Link href="/register">
                   Get Started Free
                   <ArrowRight className="h-4 w-4" />
                 </Link>

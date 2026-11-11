@@ -25,6 +25,8 @@ export async function issueSessionCookie(userId: string): Promise<string> {
   const tokenHash = hashSessionToken(rawToken);
   const hdrs = await headers();
   const userAgent = hdrs.get("user-agent") ?? undefined;
+  const isHttps =
+    hdrs.get("x-forwarded-proto") === "https" || Boolean(process.env.VERCEL);
 
   await createSession(userId, tokenHash, userAgent, SESSION_TTL_DAYS);
 
@@ -33,7 +35,7 @@ export async function issueSessionCookie(userId: string): Promise<string> {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
 

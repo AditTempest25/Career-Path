@@ -93,6 +93,7 @@ interface AppContextValue {
   saveStudyPlan: (plan: StudyPlan) => void;
   completeDailyChallenge: (xpEarned: number) => void;
   saveModuleNote: (moduleId: string, note: string) => void;
+  importBackupData: (rawData: Partial<UserData>) => Promise<AuthResult>;
   resetProgress: () => void;
 }
 
@@ -640,6 +641,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const importBackupData: AppContextValue["importBackupData"] = async (rawData) => {
+    if (!rawData || typeof rawData !== "object") {
+      return { ok: false, error: "Data backup tidak valid." };
+    }
+    const normalized = normalizeUserData(rawData);
+    normalized.activity = [
+      makeActivity("profile", "Memulihkan progres dari file backup (.json)", 0),
+      ...normalized.activity,
+    ];
+    setData(normalized);
+    if (user) {
+      write(dataKey(user.id), normalized);
+    }
+
+    try {
+      const res = await fetch("/api/user/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ data: normalized }),
+      });
+      const payload = (await res.json()) as {
+        ok?: boolean;
+        data?: UserData;
+        error?: string;
+      };
+      if (res.ok && payload.ok && payload.data && user) {
+        const serverNormalized = normalizeUserData(payload.data);
+        setData(serverNormalized);
+        write(dataKey(user.id), serverNormalized);
+      }
+      return { ok: true };
+    } catch {
+      return { ok: true };
+    }
+  };
+
   const resetProgress = () => {
     commit((prev) => ({
       ...prev,
@@ -684,6 +722,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveStudyPlan,
     completeDailyChallenge,
     saveModuleNote,
+    importBackupData,
     resetProgress,
   };
 

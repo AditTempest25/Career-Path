@@ -16,6 +16,7 @@ import {
   Map,
   MessageSquareQuote,
   Settings,
+  Trophy,
   User as UserIcon,
 } from "lucide-react";
 import {
@@ -57,6 +58,7 @@ export const navItems = [
   { href: "/portfolio", label: "Portofolio", icon: FolderKanban },
   { href: "/jobs", label: "Peluang Kerja", icon: Building2 },
   { href: "/interview", label: "Mock Interview", icon: MessageSquareQuote },
+  { href: "/leaderboard", label: "Papan Peringkat", icon: Trophy },
   { href: "/progress", label: "Progres", icon: BarChart3 },
 ];
 

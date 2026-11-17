@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Bell,
   Check,
+  DatabaseBackup,
+  Download,
   KeyRound,
   Loader2,
   Lock,
@@ -13,6 +15,7 @@ import {
   Save,
   Shield,
   Trash2,
+  Upload,
   User,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/app/shared";
 import { useApp } from "@/lib/store";
-import type { Profile, UserStatus } from "@/lib/types";
+import type { Profile, UserData, UserStatus } from "@/lib/types";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -34,6 +37,7 @@ export default function SettingsPage() {
     changePassword,
     updateProfile,
     updateSettings,
+    importBackupData,
     resetProgress,
     deleteAccount,
   } = useApp();
@@ -50,6 +54,76 @@ export default function SettingsPage() {
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleExportBackup = async () => {
+    try {
+      const res = await fetch("/api/user/backup", { credentials: "include" });
+      let backupObj: unknown;
+      if (res.ok) {
+        const json = (await res.json()) as { backup?: unknown };
+        backupObj = json.backup;
+      } else {
+        backupObj = {
+          app: "PathForge",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          user: { name: user?.name || "User", email: user?.email || "" },
+          data,
+        };
+      }
+
+      const blob = new Blob([JSON.stringify(backupObj, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const slug = (user?.name || "user")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-");
+      const dateStr = new Date().toISOString().split("T")[0];
+      a.href = url;
+      a.download = `pathforge-backup-${slug}-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("File backup (.json) berhasil diunduh!");
+    } catch {
+      toast.error("Gagal mengunduh file backup.");
+    }
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setRestoringBackup(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as {
+        data?: Partial<UserData>;
+        backup?: { data?: Partial<UserData> };
+      } & Partial<UserData>;
+      const rawData = parsed?.backup?.data ?? parsed?.data ?? parsed;
+
+      const res = await importBackupData(rawData);
+      if (res.ok) {
+        if (rawData.profile) {
+          setProfileForm((prev) => ({ ...prev, ...rawData.profile }));
+        }
+        toast.success("Progres berhasil dipulihkan dari file backup!");
+      } else {
+        toast.error(res.error || "Gagal memulihkan data backup.");
+      }
+    } catch {
+      toast.error("File JSON tidak valid atau rusak.");
+    } finally {
+      setRestoringBackup(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,6 +380,58 @@ export default function SettingsPage() {
                   checked={data.settings.emailNotifications}
                   onCheckedChange={(v) => updateSettings({ emailNotifications: v })}
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Card Backup & Restore JSON */}
+          <div className="rounded-2xl border border-primary/25 bg-card p-6">
+            <div className="flex items-center gap-2 border-b border-border pb-4">
+              <DatabaseBackup className="h-5 w-5 text-primary" />
+              <h3 className="font-[family-name:var(--font-heading)] text-base font-bold">
+                Cadangan & Pemulihan Data (.json)
+              </h3>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Simpan seluruh progres modul, nilai simulasi, dan portofolio ke file{" "}
+                <code className="rounded bg-muted px-1 py-0.5">.json</code> atau pulihkan kapan saja (sangat berguna saat berpindah perangkat atau setelah server Vercel di-restart).
+              </p>
+
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportBackup}
+                  className="w-full gap-1.5 text-xs"
+                >
+                  <Download className="h-3.5 w-3.5 text-primary" /> Unduh Backup Progres (.json)
+                </Button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={handleImportFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={restoringBackup}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full gap-1.5 text-xs"
+                >
+                  {restoringBackup ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 text-primary" />
+                  )}
+                  Pulihkan dari File Backup (.json)
+                </Button>
               </div>
             </div>
           </div>

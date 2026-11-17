@@ -20,6 +20,7 @@ import {
   Search,
   Settings,
   Sun,
+  Trophy,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -125,6 +126,10 @@ export function CommandPalette() {
             <CommandItem onSelect={() => runCommand(() => router.push("/interview"))}>
               <MessageSquareQuote className="mr-2 h-4 w-4 text-primary" />
               <span>Mock Interview Simulator</span>
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand(() => router.push("/leaderboard"))}>
+              <Trophy className="mr-2 h-4 w-4 text-primary" />
+              <span>Papan Peringkat (Leaderboard)</span>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => router.push("/progress"))}>
               <BarChart3 className="mr-2 h-4 w-4 text-primary" />

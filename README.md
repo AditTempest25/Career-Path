@@ -23,8 +23,9 @@ PathForge adalah aplikasi web untuk membantu **mahasiswa, fresh graduate, dan ca
 | **Lowongan Kerja** | `/jobs` | 12 lowongan dengan persentase kecocokan dan lamar 1-klik |
 | **Latihan Interview** | `/interview` | Latihan wawancara metode STAR dengan timer dan contoh jawaban |
 | **Kalkulator Gaji (THP)** | `/calculator` | Hitung gaji bersih setelah BPJS & PPh 21, alokasi 50/30/20, dan proyeksi 5 tahun |
+| **Papan Peringkat (Leaderboard)** | `/leaderboard` | Peringkat pembelajar berdasarkan Total XP, Level, Kesiapan Kerja, dan Streak |
 | **Progres & Lencana** | `/progress` | XP, level, streak, dan badge yang terbuka |
-| **Pengaturan** | `/settings` | Ubah profil, email, kata sandi, notifikasi, reset progres, dan hapus akun |
+| **Pengaturan & Backup Data** | `/settings` | Ubah profil, kata sandi, unduh/pulihkan backup `.json`, reset progres, dan hapus akun |
 | **Command Palette & Tema** | `Ctrl + K` | Navigasi cepat ke semua halaman, plus mode terang/gelap |
 
 ---
@@ -59,7 +60,9 @@ flowchart LR
   - `POST /api/scanner/analyze` — analisis teks CV untuk deteksi *skill gap* serta sinkronisasi modul Roadmap di server.
   - `GET & POST /api/jobs` — daftar lowongan kerja dengan kalkulasi kecocokan (*job match*) dan pencatatan lamaran kerja di server.
   - `GET & POST /api/interview` — daftar pertanyaan wawancara metode STAR dan penyimpanan riwayat latihan interview di server.
-- **Keamanan:** kata sandi di-hash dengan `scrypt` (`timingSafeEqual`), sesi disimpan di cookie `HttpOnly`.
+  - `GET & POST /api/user/backup` — ekspor dan impor cadangan progres pengguna dalam format `.json`.
+  - `GET /api/leaderboard` — peringkat talenta dan pembelajar berdasarkan XP, Level, dan kesiapan kerja.
+- **Keamanan:** kata sandi di-hash dengan `scrypt` (`timingSafeEqual`), sesi disimpan di cookie `HttpOnly`, dan endpoint autentikasi dilindungi *Sliding Window Rate Limiter* (`lib/server/rate-limit.ts`).
 - **Penyimpanan:** progres disimpan di browser (`localStorage`) dan disinkronkan ke database file sementara di server (`lib/server/db.ts`).
 
 ---

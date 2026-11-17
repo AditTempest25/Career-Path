@@ -3,6 +3,7 @@ import { z } from "zod";
 import { hashPassword } from "@/lib/server/auth-crypto";
 import { createUser, toPublicUser } from "@/lib/server/db";
 import { issueSessionCookie } from "@/lib/server/session";
+import { checkRateLimit } from "@/lib/server/rate-limit";
 
 const registerSchema = z.object({
   name: z
@@ -19,6 +20,9 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const rate = checkRateLimit(request, "auth-register", 8, 60_000);
+    if (!rate.allowed) return rate.response;
+
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
 

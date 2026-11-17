@@ -512,3 +512,18 @@ export async function findUsersByProfileSlug(
     return { result: matches };
   });
 }
+
+/**
+ * Ambil seluruh pengguna beserta data progresnya (dipakai untuk Leaderboard).
+ */
+export async function listAllUsersWithData(): Promise<
+  { user: DbUser; data: UserData }[]
+> {
+  return withDb((db) => {
+    const list = db.users.map((user) => ({
+      user,
+      data: normalizeUserData(db.userData[user.id]),
+    }));
+    return { result: list };
+  });
+}

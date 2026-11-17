@@ -8,6 +8,7 @@ import {
   toPublicUser,
 } from "@/lib/server/db";
 import { issueSessionCookie } from "@/lib/server/session";
+import { checkRateLimit } from "@/lib/server/rate-limit";
 import { DEMO_EMAIL } from "@/lib/seed-data";
 
 const loginSchema = z.object({
@@ -17,6 +18,9 @@ const loginSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const rate = checkRateLimit(request, "auth-login", 10, 60_000);
+    if (!rate.allowed) return rate.response;
+
     const body = await request.json();
     const parsed = loginSchema.safeParse(body);
 

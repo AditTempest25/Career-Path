@@ -6,6 +6,7 @@ import {
   ensureDemoUser,
   verifyOtpAndResetPassword,
 } from "@/lib/server/db";
+import { checkRateLimit } from "@/lib/server/rate-limit";
 import { DEMO_EMAIL } from "@/lib/seed-data";
 
 const requestOtpSchema = z.object({
@@ -27,6 +28,9 @@ const forgotSchema = z.discriminatedUnion("action", [
 
 export async function POST(request: Request) {
   try {
+    const rate = checkRateLimit(request, "auth-forgot-pw", 6, 60_000);
+    if (!rate.allowed) return rate.response;
+
     const body = await request.json();
     const parsed = forgotSchema.safeParse(body);
 

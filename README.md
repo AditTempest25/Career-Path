@@ -54,13 +54,18 @@ flowchart LR
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, shadcn/ui.
 - **Backend API Routes (`app/api/...`):**
   - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/demo`, `POST /api/auth/logout`, `GET /api/auth/me`, `PATCH & DELETE /api/auth/account`, `POST /api/auth/forgot-password` — autentikasi, sesi cookie, akun demo, dan pemulihan kata sandi dengan OTP 6 digit.
-  - `GET & PUT /api/user/data` — sinkronisasi progres belajar, asesmen, dan pengaturan pengguna.
-  - `GET /api/public/portfolio/[username]` — mengambil data portofolio publik langsung dari server berdasarkan slug nama pengguna.
-  - `POST /api/simulator/submit` — penilaian rubrik, skor (0–100), dan *feedback* Work Simulator di sisi server.
+  - `GET & POST /api/assessment` — kuis asesmen Career GPS dan kalkulasi skor kecocokan 6 jalur karier di server.
+  - `GET & PATCH /api/careers` — katalog jalur karier, metrik kesiapan user, dan pergantian jalur karier aktif di server.
+  - `GET & POST /api/roadmap` — kurikulum 3 fase, *toggle* penyelesaian modul (+XP), catatan belajar per modul, dan penyimpanan *Smart Study Plan*.
+  - `GET & PATCH /api/simulator` & `POST /api/simulator/submit` — katalog Work Simulator, *autosave draft*, *pin* proyek unggulan portofolio, serta penilaian rubrik otomatis (skor 0–100 + *feedback*) di server.
+  - `GET & POST /api/daily-quiz` — soal Tantangan Kuis Kilat Harian, penilaian jawaban di server (+25 XP), dan pencatatan *streak* harian.
   - `POST /api/scanner/analyze` — analisis teks CV untuk deteksi *skill gap* serta sinkronisasi modul Roadmap di server.
+  - `POST /api/calculator` — kalkulasi *Take Home Pay* (THP), potongan BPJS Kesehatan/TK, PPh 21, alokasi 50/30/20, dan proyeksi gaji 5 tahun di server.
   - `GET & POST /api/jobs` — daftar lowongan kerja dengan kalkulasi kecocokan (*job match*) dan pencatatan lamaran kerja di server.
   - `GET & POST /api/interview` — daftar pertanyaan wawancara metode STAR dan penyimpanan riwayat latihan interview di server.
-  - `GET & POST /api/user/backup` — ekspor dan impor cadangan progres pengguna dalam format `.json`.
+  - `GET /api/progress` — kalkulasi terpusat untuk Total XP, Level, Streak, Skor Kesiapan Kerja, Level Skill, Lencana (*Badges*), dan kelayakan Sertifikat.
+  - `GET /api/public/portfolio/[username]` — mengambil data portofolio publik langsung dari server berdasarkan slug nama pengguna.
+  - `GET & POST /api/user/backup` & `GET & PUT /api/user/data` — ekspor/impor cadangan progres `.json` dan sinkronisasi penuh data pengguna.
   - `GET /api/leaderboard` — peringkat talenta dan pembelajar berdasarkan XP, Level, dan kesiapan kerja.
 - **Keamanan:** kata sandi di-hash dengan `scrypt` (`timingSafeEqual`), sesi disimpan di cookie `HttpOnly`, dan endpoint autentikasi dilindungi *Sliding Window Rate Limiter* (`lib/server/rate-limit.ts`).
 - **Penyimpanan:** progres disimpan di browser (`localStorage`) dan disinkronkan ke database file sementara di server (`lib/server/db.ts`).

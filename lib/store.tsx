@@ -174,17 +174,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const commit = React.useCallback(
-    (updater: (prev: UserData) => UserData) => {
+    (
+      updater: (prev: UserData) => UserData,
+      options?: { skipGenericSync?: boolean }
+    ) => {
       setData((prev) => {
         const next = updater(prev);
         if (user) {
           write(dataKey(user.id), next);
-          syncDataToServer(next);
+          if (!options?.skipGenericSync) {
+            syncDataToServer(next);
+          }
         }
         return next;
       });
     },
     [user, syncDataToServer]
+  );
+
+  const callDedicatedEndpoint = React.useCallback(
+    (url: string, method: "POST" | "PATCH", body: unknown) => {
+      fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((payload: { ok?: boolean; data?: UserData } | null) => {
+          if (payload?.ok && payload.data && user) {
+            const normalized = normalizeUserData(payload.data);
+            setData(normalized);
+            write(dataKey(user.id), normalized);
+          }
+        })
+        .catch(() => {
+          /* abaikan error jaringan sementara, state lokal sudah tersimpan */
+        });
+    },
+    [user]
   );
 
   const startSession = (u: PublicUser, d: UserData) => {
@@ -383,54 +411,84 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       answers,
       scores: calculateScores(answers),
     };
-    commit((prev) => ({
-      ...prev,
-      assessment: result,
-      profile: { ...prev.profile, ...profile },
-      activity: [makeActivity("assessment", "Menyelesaikan asesmen Career GPS", 50), ...prev.activity],
-    }));
+    commit(
+      (prev) => ({
+        ...prev,
+        assessment: result,
+        profile: { ...prev.profile, ...profile },
+        activity: [makeActivity("assessment", "Menyelesaikan asesmen Career GPS", 50), ...prev.activity],
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/assessment", "POST", { answers, profile });
     return result;
   };
 
   const completeOnboarding = (careerId: CareerId) => {
     const career = getCareer(careerId);
-    commit((prev) => ({
-      ...prev,
-      onboarded: true,
-      activeCareer: careerId,
-      activity: [makeActivity("career", `Memilih jalur ${career?.title ?? careerId}`, 0), ...prev.activity],
-    }));
+    commit(
+      (prev) => ({
+        ...prev,
+        onboarded: true,
+        activeCareer: careerId,
+        activity: [makeActivity("career", `Memilih jalur ${career?.title ?? careerId}`, 0), ...prev.activity],
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/careers", "PATCH", {
+      careerId,
+      completeOnboarding: true,
+    });
   };
 
   const setActiveCareer = (careerId: CareerId) => {
     const career = getCareer(careerId);
-    commit((prev) => ({
-      ...prev,
-      activeCareer: careerId,
-      activity: [makeActivity("career", `Beralih ke jalur ${career?.title ?? careerId}`, 0), ...prev.activity],
-    }));
+    commit(
+      (prev) => ({
+        ...prev,
+        activeCareer: careerId,
+        activity: [makeActivity("career", `Beralih ke jalur ${career?.title ?? careerId}`, 0), ...prev.activity],
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/careers", "PATCH", { careerId });
   };
 
   const toggleModule = (moduleId: string) => {
     const isDone = data.completedModules.includes(moduleId);
     const mod = findModule(moduleId);
-    commit((prev) => {
-      if (prev.completedModules.includes(moduleId)) {
-        return { ...prev, completedModules: prev.completedModules.filter((m) => m !== moduleId) };
-      }
-      return {
-        ...prev,
-        completedModules: [...prev.completedModules, moduleId],
-        activity: mod
-          ? [makeActivity("module", `Menyelesaikan modul "${mod.title}"`, mod.hours * 10), ...prev.activity]
-          : prev.activity,
-      };
+    commit(
+      (prev) => {
+        if (prev.completedModules.includes(moduleId)) {
+          return { ...prev, completedModules: prev.completedModules.filter((m) => m !== moduleId) };
+        }
+        return {
+          ...prev,
+          completedModules: [...prev.completedModules, moduleId],
+          activity: mod
+            ? [makeActivity("module", `Menyelesaikan modul "${mod.title}"`, mod.hours * 10), ...prev.activity]
+            : prev.activity,
+        };
+      },
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/roadmap", "POST", {
+      action: "toggle-module",
+      moduleId,
     });
     return !isDone;
   };
 
   const saveDraft = (simulationId: string, answers: Record<string, string>) => {
-    commit((prev) => ({ ...prev, drafts: { ...prev.drafts, [simulationId]: answers } }));
+    commit(
+      (prev) => ({ ...prev, drafts: { ...prev.drafts, [simulationId]: answers } }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/simulator", "PATCH", {
+      action: "save-draft",
+      simulationId,
+      answers,
+    });
   };
 
   const submitSimulation: AppContextValue["submitSimulation"] = (simulationId, answers) => {
@@ -447,46 +505,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     const prevXp = prevSub ? Math.round((sim.xp * prevSub.score) / 100) : 0;
     const newXp = Math.round((sim.xp * result.score) / 100);
-    commit((prev) => {
-      const { [simulationId]: _removed, ...drafts } = prev.drafts;
-      return {
-        ...prev,
-        drafts,
-        submissions: { ...prev.submissions, [simulationId]: submission },
-        activity: [
-          makeActivity("simulation", `Mengirim simulasi "${sim.title}" (skor ${result.score})`, Math.max(0, newXp - prevXp)),
-          ...prev.activity,
-        ],
-      };
+    commit(
+      (prev) => {
+        const { [simulationId]: _removed, ...drafts } = prev.drafts;
+        return {
+          ...prev,
+          drafts,
+          submissions: { ...prev.submissions, [simulationId]: submission },
+          activity: [
+            makeActivity("simulation", `Mengirim simulasi "${sim.title}" (skor ${result.score})`, Math.max(0, newXp - prevXp)),
+            ...prev.activity,
+          ],
+        };
+      },
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/simulator/submit", "POST", {
+      simulationId,
+      answers,
     });
-
-    // Evaluasi dan simpan otoritatif lewat endpoint khusus /api/simulator/submit
-    fetch("/api/simulator/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ simulationId, answers }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((payload: { ok?: boolean; data?: UserData } | null) => {
-        if (payload?.ok && payload.data && user) {
-          const normalized = normalizeUserData(payload.data);
-          setData(normalized);
-          write(dataKey(user.id), normalized);
-        }
-      })
-      .catch(() => {});
-
     return submission;
   };
 
   const toggleFeatured = (simulationId: string) => {
-    commit((prev) => ({
-      ...prev,
-      featured: prev.featured.includes(simulationId)
-        ? prev.featured.filter((f) => f !== simulationId)
-        : [...prev.featured, simulationId],
-    }));
+    commit(
+      (prev) => ({
+        ...prev,
+        featured: prev.featured.includes(simulationId)
+          ? prev.featured.filter((f) => f !== simulationId)
+          : [...prev.featured, simulationId],
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/simulator", "PATCH", {
+      action: "toggle-featured",
+      simulationId,
+    });
   };
 
   const updateProfile = (patch: Partial<Profile>) => {
@@ -498,147 +552,138 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const applyJob = (jobId: string, jobTitle: string, companyName: string) => {
-    commit((prev) => ({
-      ...prev,
-      appliedJobs: {
-        ...(prev.appliedJobs ?? {}),
-        [jobId]: {
-          jobId,
-          appliedAt: new Date().toISOString(),
-          status: "Terkirim",
+    commit(
+      (prev) => ({
+        ...prev,
+        appliedJobs: {
+          ...(prev.appliedJobs ?? {}),
+          [jobId]: {
+            jobId,
+            appliedAt: new Date().toISOString(),
+            status: "Terkirim",
+          },
         },
-      },
-      activity: [
-        makeActivity("job", `Melamar posisi ${jobTitle} di ${companyName}`, 25),
-        ...prev.activity,
-      ],
-    }));
-
-    fetch("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ jobId }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((payload: { ok?: boolean; data?: UserData } | null) => {
-        if (payload?.ok && payload.data && user) {
-          const normalized = normalizeUserData(payload.data);
-          setData(normalized);
-          write(dataKey(user.id), normalized);
-        }
-      })
-      .catch(() => {});
+        activity: [
+          makeActivity("job", `Melamar posisi ${jobTitle} di ${companyName}`, 25),
+          ...prev.activity,
+        ],
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/jobs", "POST", { jobId });
   };
 
   const saveInterviewPractice = (questionId: string, answer: string, rating?: number) => {
-    commit((prev) => ({
-      ...prev,
-      interviewPractice: {
-        ...(prev.interviewPractice ?? {}),
-        [questionId]: {
-          questionId,
-          answer,
-          practicedAt: new Date().toISOString(),
-          rating,
+    commit(
+      (prev) => ({
+        ...prev,
+        interviewPractice: {
+          ...(prev.interviewPractice ?? {}),
+          [questionId]: {
+            questionId,
+            answer,
+            practicedAt: new Date().toISOString(),
+            rating,
+          },
         },
-      },
-      activity: [
-        makeActivity("interview", `Latihan simulasi wawancara pertanyaan #${questionId}`, 15),
-        ...prev.activity,
-      ],
-    }));
-
-    fetch("/api/interview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ questionId, answer, rating: rating ?? 4 }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((payload: { ok?: boolean; data?: UserData } | null) => {
-        if (payload?.ok && payload.data && user) {
-          const normalized = normalizeUserData(payload.data);
-          setData(normalized);
-          write(dataKey(user.id), normalized);
-        }
-      })
-      .catch(() => {});
+        activity: [
+          makeActivity("interview", `Latihan simulasi wawancara pertanyaan #${questionId}`, 15),
+          ...prev.activity,
+        ],
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/interview", "POST", {
+      questionId,
+      answer,
+      rating: rating ?? 4,
+    });
   };
 
   const syncScannedModules = (moduleIds: string[]): number => {
     let newlyAdded = 0;
-    commit((prev) => {
-      const existing = new Set(prev.completedModules);
-      const toAdd = moduleIds.filter((id) => !existing.has(id));
-      newlyAdded = toAdd.length;
-      if (newlyAdded === 0) return prev;
-      return {
-        ...prev,
-        completedModules: [...prev.completedModules, ...toAdd],
-        activity: [
-          makeActivity("scanner", `Sinkronisasi ${newlyAdded} modul dari hasil scan CV`, newlyAdded * 20),
-          ...prev.activity,
-        ],
-      };
-    });
+    commit(
+      (prev) => {
+        const existing = new Set(prev.completedModules);
+        const toAdd = moduleIds.filter((id) => !existing.has(id));
+        newlyAdded = toAdd.length;
+        if (newlyAdded === 0) return prev;
+        return {
+          ...prev,
+          completedModules: [...prev.completedModules, ...toAdd],
+          activity: [
+            makeActivity("scanner", `Sinkronisasi ${newlyAdded} modul dari hasil scan CV`, newlyAdded * 20),
+            ...prev.activity,
+          ],
+        };
+      },
+      { skipGenericSync: true }
+    );
 
     if (moduleIds.length > 0) {
-      fetch("/api/scanner/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ action: "sync", moduleIds }),
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((payload: { ok?: boolean; data?: UserData } | null) => {
-          if (payload?.ok && payload.data && user) {
-            const normalized = normalizeUserData(payload.data);
-            setData(normalized);
-            write(dataKey(user.id), normalized);
-          }
-        })
-        .catch(() => {});
+      callDedicatedEndpoint("/api/scanner/analyze", "POST", {
+        action: "sync",
+        moduleIds,
+      });
     }
 
     return newlyAdded;
   };
 
   const saveStudyPlan = (plan: StudyPlan) => {
-    commit((prev) => ({
-      ...prev,
-      studyPlan: plan,
-      profile: {
-        ...prev.profile,
-        weeklyHours: plan.weeklyHours,
-      },
-    }));
+    commit(
+      (prev) => ({
+        ...prev,
+        studyPlan: plan,
+        profile: {
+          ...prev.profile,
+          weeklyHours: plan.weeklyHours,
+        },
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/roadmap", "POST", {
+      action: "save-study-plan",
+      ...plan,
+    });
   };
 
   const completeDailyChallenge = (xpEarned: number) => {
     const todayStr = new Date().toISOString().split("T")[0];
-    commit((prev) => ({
-      ...prev,
-      dailyChallenge: {
-        lastCompletedDate: todayStr,
-        streakCount: (prev.dailyChallenge?.streakCount ?? 0) + 1,
-        totalAnswered: (prev.dailyChallenge?.totalAnswered ?? 0) + 1,
-      },
-      activity: [
-        makeActivity("quiz", `Menyelesaikan Tantangan Kuis Kilat Harian (+${xpEarned} XP)`, xpEarned),
-        ...prev.activity,
-      ],
-    }));
+    commit(
+      (prev) => ({
+        ...prev,
+        dailyChallenge: {
+          lastCompletedDate: todayStr,
+          streakCount: (prev.dailyChallenge?.streakCount ?? 0) + 1,
+          totalAnswered: (prev.dailyChallenge?.totalAnswered ?? 0) + 1,
+        },
+        activity: [
+          makeActivity("quiz", `Menyelesaikan Tantangan Kuis Kilat Harian (+${xpEarned} XP)`, xpEarned),
+          ...prev.activity,
+        ],
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/daily-quiz", "POST", { xpEarned });
   };
 
   const saveModuleNote = (moduleId: string, note: string) => {
-    commit((prev) => ({
-      ...prev,
-      moduleNotes: {
-        ...(prev.moduleNotes ?? {}),
-        [moduleId]: note,
-      },
-    }));
+    commit(
+      (prev) => ({
+        ...prev,
+        moduleNotes: {
+          ...(prev.moduleNotes ?? {}),
+          [moduleId]: note,
+        },
+      }),
+      { skipGenericSync: true }
+    );
+    callDedicatedEndpoint("/api/roadmap", "POST", {
+      action: "save-note",
+      moduleId,
+      note,
+    });
   };
 
   const importBackupData: AppContextValue["importBackupData"] = async (rawData) => {

@@ -79,7 +79,7 @@ function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-function makeActivity(type: ActivityType, label: string, xp: number, date?: Date): Activity {
+export function makeActivity(type: ActivityType, label: string, xp: number, date?: Date): Activity {
   return { id: uid(), type, label, xp, date: (date ?? new Date()).toISOString() };
 }
 

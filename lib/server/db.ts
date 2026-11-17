@@ -13,6 +13,7 @@ import {
   normalizeUserData,
 } from "@/lib/seed-data";
 import { generateOtpCode, hashPassword } from "@/lib/server/auth-crypto";
+import { toProfileSlug } from "@/lib/slug";
 
 export interface DbUser {
   id: string;
@@ -476,5 +477,38 @@ export async function verifyOtpAndResetPassword(
     user.updatedAt = now.toISOString();
 
     return { db, result: { ok: true } };
+  });
+}
+
+/**
+ * Ubah data progres satu pengguna secara atomik (baca + tulis dalam satu antrean).
+ * Jika mutator tidak mengembalikan `next`, database tidak ditulis ulang.
+ */
+export async function mutateUserData<T>(
+  userId: string,
+  mutator: (current: UserData) => { next?: UserData; result: T }
+): Promise<T> {
+  return withDb((db) => {
+    const current = normalizeUserData(db.userData[userId]);
+    const { next, result } = mutator(current);
+    if (!next) return { result };
+    db.userData[userId] = normalizeUserData(next);
+    return { db, result };
+  });
+}
+
+/**
+ * Cari semua pengguna yang slug namanya cocok (dipakai untuk portofolio publik).
+ */
+export async function findUsersByProfileSlug(
+  slug: string
+): Promise<{ user: DbUser; data: UserData }[]> {
+  const target = slug.trim().toLowerCase();
+  return withDb((db) => {
+    const matches = db.users
+      .filter((u) => toProfileSlug(u.name) === target)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((user) => ({ user, data: normalizeUserData(db.userData[user.id]) }));
+    return { result: matches };
   });
 }

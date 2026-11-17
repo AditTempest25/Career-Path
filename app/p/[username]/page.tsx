@@ -2,22 +2,16 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
-  Award,
-  Briefcase,
-  CheckCircle2,
   ExternalLink,
   Github,
-  Globe,
   GraduationCap,
   Linkedin,
+  Loader2,
   MapPin,
   Printer,
-  Share2,
   ShieldCheck,
-  Sparkles,
-  Star,
-  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,21 +21,122 @@ import { getCareer } from "@/lib/data/careers";
 import { getSimulation } from "@/lib/data/simulations";
 import { formatDate, getLevel, getReadiness, getTotalXp, initials } from "@/lib/progress";
 
+interface ServerPublicPortfolio {
+  name: string;
+  slug: string;
+  createdAt: string;
+  publicPortfolioEnabled: boolean;
+  activeCareerId: string;
+  careerTitle: string;
+  skills: string[];
+  tools: string[];
+  profile: {
+    headline: string;
+    bio: string;
+    location: string;
+    education: string;
+    github: string;
+    linkedin: string;
+    website: string;
+  };
+  stats: {
+    readiness: number;
+    xp: number;
+    level: number;
+    completedModulesCount: number;
+    submissionsCount: number;
+  };
+  featuredProjects: {
+    simulationId: string;
+    title: string;
+    role: string;
+    summary: string;
+    skills: string[];
+    company: {
+      name: string;
+      initials: string;
+      industry: string;
+    };
+    score: number;
+    answers: Record<string, string>;
+    submittedAt: string;
+  }[];
+}
+
 export default function PublicPortfolioPage() {
   const params = useParams();
   const username = params.username as string;
   const { user, data } = useApp();
 
-  // Jika nama sama atau demo, tampilkan data user aktif
-  const displayName = user?.name || decodeURIComponent(username).replace(/-/g, " ");
-  const career = getCareer(data.activeCareer || "web-developer");
-  const readiness = career ? getReadiness(career.id, data) : 75;
-  const xp = getTotalXp(data);
-  const level = getLevel(xp);
+  const [serverPortfolio, setServerPortfolio] = useState<ServerPublicPortfolio | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const featured = data.featured
-    .map((id) => ({ sim: getSimulation(id), sub: data.submissions[id] }))
-    .filter((x): x is { sim: NonNullable<typeof x.sim>; sub: NonNullable<typeof x.sub> } => !!x.sim && !!x.sub);
+  useEffect(() => {
+    let active = true;
+    async function fetchPortfolio() {
+      try {
+        const res = await fetch(
+          `/api/public/portfolio/${encodeURIComponent(username)}`,
+          { credentials: "include", cache: "no-store" }
+        );
+        if (res.ok) {
+          const payload = (await res.json()) as {
+            ok?: boolean;
+            portfolio?: ServerPublicPortfolio;
+          };
+          if (active && payload.ok && payload.portfolio) {
+            setServerPortfolio(payload.portfolio);
+          }
+        }
+      } catch {
+        /* fallback ke state lokal jika server tidak terjangkau */
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    fetchPortfolio();
+    return () => {
+      active = false;
+    };
+  }, [username]);
+
+  // Fallback dari context client jika belum ada di server
+  const fallbackCareer = getCareer(data.activeCareer || "web-developer");
+  const fallbackXp = getTotalXp(data);
+  const fallbackLevel = getLevel(fallbackXp);
+  const fallbackReadiness = fallbackCareer ? getReadiness(fallbackCareer.id, data) : 75;
+  const fallbackFeatured = data.featured
+    .map((id) => {
+      const sim = getSimulation(id);
+      const sub = data.submissions[id];
+      if (!sim || !sub) return null;
+      return {
+        simulationId: sim.id,
+        title: sim.title,
+        role: sim.role,
+        summary: sim.summary,
+        skills: sim.skills,
+        company: sim.company,
+        score: sub.score,
+        answers: sub.answers,
+        submittedAt: sub.submittedAt,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
+  const displayName =
+    serverPortfolio?.name ||
+    user?.name ||
+    decodeURIComponent(username).replace(/-/g, " ");
+  const careerTitle =
+    serverPortfolio?.careerTitle || fallbackCareer?.title || "Professional";
+  const profile = serverPortfolio?.profile ?? data.profile;
+  const readiness = serverPortfolio?.stats.readiness ?? fallbackReadiness;
+  const xp = serverPortfolio?.stats.xp ?? fallbackXp;
+  const levelNum = serverPortfolio?.stats.level ?? fallbackLevel.level;
+  const skills = serverPortfolio?.skills ?? fallbackCareer?.skills ?? [];
+  const tools = serverPortfolio?.tools ?? fallbackCareer?.tools ?? [];
+  const featured = serverPortfolio?.featuredProjects ?? fallbackFeatured;
 
   const printResume = () => {
     window.print();
@@ -55,6 +150,11 @@ export default function PublicPortfolioPage() {
           <Logo />
         </Link>
         <div className="flex items-center gap-2">
+          {loading && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat dari server...
+            </span>
+          )}
           <Button variant="outline" size="sm" onClick={printResume} className="gap-1.5">
             <Printer className="h-4 w-4" /> Cetak / PDF
           </Button>
@@ -84,28 +184,28 @@ export default function PublicPortfolioPage() {
                 </div>
 
                 <p className="mt-1.5 text-base font-semibold text-primary">
-                  {data.profile.headline || `Junior ${career?.title || "Professional"}`}
+                  {profile.headline || `Junior ${careerTitle}`}
                 </p>
 
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                  {data.profile.bio ||
+                  {profile.bio ||
                     "Portofolio hasil pengerjaan proyek simulasi kerja berbasis standar industri teknologi."}
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                  {data.profile.location && (
+                  {profile.location && (
                     <span className="flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" /> {data.profile.location}
+                      <MapPin className="h-3.5 w-3.5" /> {profile.location}
                     </span>
                   )}
-                  {data.profile.education && (
+                  {profile.education && (
                     <span className="flex items-center gap-1">
-                      <GraduationCap className="h-3.5 w-3.5" /> {data.profile.education}
+                      <GraduationCap className="h-3.5 w-3.5" /> {profile.education}
                     </span>
                   )}
-                  {data.profile.github && (
+                  {profile.github && (
                     <a
-                      href={data.profile.github}
+                      href={profile.github}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1 text-primary hover:underline"
@@ -113,9 +213,9 @@ export default function PublicPortfolioPage() {
                       <Github className="h-3.5 w-3.5" /> GitHub
                     </a>
                   )}
-                  {data.profile.linkedin && (
+                  {profile.linkedin && (
                     <a
-                      href={data.profile.linkedin}
+                      href={profile.linkedin}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1 text-primary hover:underline"
@@ -135,20 +235,20 @@ export default function PublicPortfolioPage() {
                 {readiness}%
               </p>
               <span className="text-[11px] text-muted-foreground">
-                Level {level.level} ({xp} XP Terverifikasi)
+                Level {levelNum} ({xp} XP Terverifikasi)
               </span>
             </div>
           </div>
         </div>
 
         {/* Skill Badge Section */}
-        {career && (
+        {(skills.length > 0 || tools.length > 0) && (
           <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Kompetensi & Perangkat Kerja
             </h2>
             <div className="mt-3 flex flex-wrap gap-2">
-              {career.skills.map((s) => (
+              {skills.map((s) => (
                 <span
                   key={s}
                   className="rounded-lg bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
@@ -156,7 +256,7 @@ export default function PublicPortfolioPage() {
                   {s}
                 </span>
               ))}
-              {career.tools.map((t) => (
+              {tools.map((t) => (
                 <span
                   key={t}
                   className="rounded-lg bg-muted px-3 py-1 text-xs font-medium text-foreground"
@@ -185,36 +285,36 @@ export default function PublicPortfolioPage() {
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2">
-              {featured.map(({ sim, sub }) => (
+              {featured.map((proj) => (
                 <div
-                  key={sim.id}
+                  key={proj.simulationId}
                   className="flex flex-col justify-between rounded-2xl border border-border bg-card p-6 shadow-sm"
                 >
                   <div>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
                         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-                          {sim.company.initials}
+                          {proj.company.initials}
                         </span>
                         <div>
-                          <h3 className="font-bold text-base text-foreground">{sim.title}</h3>
+                          <h3 className="font-bold text-base text-foreground">{proj.title}</h3>
                           <span className="text-xs text-muted-foreground">
-                            {sim.company.name} · {sim.role}
+                            {proj.company.name} · {proj.role}
                           </span>
                         </div>
                       </div>
                       <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
-                        Skor {sub.score}/100
+                        Skor {proj.score}/100
                       </Badge>
                     </div>
 
                     <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-                      {sim.summary}
+                      {proj.summary}
                     </p>
 
                     {/* Output Preview */}
                     <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3.5 space-y-2 text-xs">
-                      {Object.entries(sub.answers).map(([key, val]) => (
+                      {Object.entries(proj.answers).map(([key, val]) => (
                         <div key={key}>
                           <span className="font-semibold text-foreground capitalize">
                             {key}:
@@ -239,7 +339,7 @@ export default function PublicPortfolioPage() {
 
                     {/* Skills */}
                     <div className="mt-4 flex flex-wrap gap-1.5">
-                      {sim.skills.map((s) => (
+                      {proj.skills.map((s) => (
                         <span
                           key={s}
                           className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -251,7 +351,7 @@ export default function PublicPortfolioPage() {
                   </div>
 
                   <div className="mt-5 border-t border-border pt-3 text-[11px] text-muted-foreground flex items-center justify-between">
-                    <span>Selesai: {formatDate(sub.submittedAt)}</span>
+                    <span>Selesai: {formatDate(proj.submittedAt)}</span>
                     <span className="text-success font-medium">✓ Lulus Rubrik Review</span>
                   </div>
                 </div>

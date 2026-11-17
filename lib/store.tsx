@@ -458,6 +458,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ],
       };
     });
+
+    // Evaluasi dan simpan otoritatif lewat endpoint khusus /api/simulator/submit
+    fetch("/api/simulator/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ simulationId, answers }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { ok?: boolean; data?: UserData } | null) => {
+        if (payload?.ok && payload.data && user) {
+          const normalized = normalizeUserData(payload.data);
+          setData(normalized);
+          write(dataKey(user.id), normalized);
+        }
+      })
+      .catch(() => {});
+
     return submission;
   };
 
@@ -494,6 +512,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev.activity,
       ],
     }));
+
+    fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ jobId }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { ok?: boolean; data?: UserData } | null) => {
+        if (payload?.ok && payload.data && user) {
+          const normalized = normalizeUserData(payload.data);
+          setData(normalized);
+          write(dataKey(user.id), normalized);
+        }
+      })
+      .catch(() => {});
   };
 
   const saveInterviewPractice = (questionId: string, answer: string, rating?: number) => {
@@ -513,6 +547,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev.activity,
       ],
     }));
+
+    fetch("/api/interview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ questionId, answer, rating: rating ?? 4 }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { ok?: boolean; data?: UserData } | null) => {
+        if (payload?.ok && payload.data && user) {
+          const normalized = normalizeUserData(payload.data);
+          setData(normalized);
+          write(dataKey(user.id), normalized);
+        }
+      })
+      .catch(() => {});
   };
 
   const syncScannedModules = (moduleIds: string[]): number => {
@@ -531,6 +581,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ],
       };
     });
+
+    if (moduleIds.length > 0) {
+      fetch("/api/scanner/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "sync", moduleIds }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((payload: { ok?: boolean; data?: UserData } | null) => {
+          if (payload?.ok && payload.data && user) {
+            const normalized = normalizeUserData(payload.data);
+            setData(normalized);
+            write(dataKey(user.id), normalized);
+          }
+        })
+        .catch(() => {});
+    }
+
     return newlyAdded;
   };
 

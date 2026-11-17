@@ -55,19 +55,43 @@ export default function ResumeScannerPage() {
 
   const career = getCareer(targetCareer);
 
-  const handleScan = () => {
+  const handleScan = async () => {
     if (!resumeText.trim()) {
       toast.error("Harap tempelkan (paste) teks CV atau ringkasan profilmu terlebih dahulu.");
       return;
     }
 
     setIsScanning(true);
-    setTimeout(() => {
-      const result = analyzeResumeText(resumeText, targetCareer);
-      setScanResult(result);
+    try {
+      const res = await fetch("/api/scanner/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action: "analyze",
+          resumeText,
+          targetCareerId: targetCareer,
+        }),
+      });
+      const payload = (await res.json()) as {
+        ok?: boolean;
+        result?: ScanResult;
+        error?: string;
+      };
+      if (res.ok && payload.ok && payload.result) {
+        setScanResult(payload.result);
+        toast.success(`Pemindaian selesai! Ditemukan ${payload.result.detectedSkills.length} keahlian.`);
+        return;
+      }
+    } catch {
+      /* fallback ke analisis lokal jika offline */
+    } finally {
       setIsScanning(false);
-      toast.success(`Pemindaian selesai! Ditemukan ${result.detectedSkills.length} keahlian.`);
-    }, 600);
+    }
+
+    const fallbackResult = analyzeResumeText(resumeText, targetCareer);
+    setScanResult(fallbackResult);
+    toast.success(`Pemindaian selesai! Ditemukan ${fallbackResult.detectedSkills.length} keahlian.`);
   };
 
   const handleLoadSample = () => {

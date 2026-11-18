@@ -59,13 +59,20 @@ interface DatabaseSchema {
   passwordResetOtps: DbPasswordResetOtp[];
 }
 
-const DATA_DIR = process.env.VERCEL
-  ? path.join(os.tmpdir(), "pathforge-data")
-  : path.join(process.cwd(), "data");
-const DB_FILE = path.join(DATA_DIR, "pathforge-db.json");
+function getDataDir() {
+  if (process.env.PATHFORGE_DATA_DIR) {
+    return process.env.PATHFORGE_DATA_DIR;
+  }
+  return process.env.VERCEL
+    ? path.join(os.tmpdir(), "pathforge-data")
+    : path.join(process.cwd(), "data");
+}
+
+function getDbFile() {
+  return path.join(getDataDir(), "pathforge-db.json");
+}
 
 let writeQueue: Promise<unknown> = Promise.resolve();
-let memoryCache: DatabaseSchema | null = null;
 
 function createInitialDb(): DatabaseSchema {
   const now = new Date().toISOString();
@@ -90,10 +97,11 @@ function createInitialDb(): DatabaseSchema {
 }
 
 async function readDbFile(): Promise<DatabaseSchema> {
+  const dbFile = getDbFile();
   try {
-    const raw = await fs.readFile(DB_FILE, "utf-8");
+    const raw = await fs.readFile(dbFile, "utf-8");
     const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
-    const loaded: DatabaseSchema = {
+    return {
       version: parsed.version ?? 1,
       users: Array.isArray(parsed.users) ? parsed.users : [],
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
@@ -102,32 +110,35 @@ async function readDbFile(): Promise<DatabaseSchema> {
         ? parsed.passwordResetOtps
         : [],
     };
-    memoryCache = loaded;
-    return loaded;
-  } catch {
-    if (memoryCache) return memoryCache;
-    const initial = createInitialDb();
-    memoryCache = initial;
-    await writeDbFile(initial);
-    return initial;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code === "ENOENT") {
+      const initial = createInitialDb();
+      await writeDbFile(initial);
+      return initial;
+    }
+    throw err;
   }
 }
 
 async function writeDbFile(db: DatabaseSchema): Promise<void> {
-  memoryCache = db;
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-  } catch {
-    /* Jika filesystem read-only, memoryCache tetap menjaga state selama instance aktif */
-  }
+  const dataDir = getDataDir();
+  const dbFile = getDbFile();
+  // PF-013: Jangan pernah menelan kegagalan tulis di lokal maupun di Vercel.
+  // Setiap kegagalan fs.mkdir / fs.writeFile wajib dilempar ke pemanggil.
+  await fs.mkdir(dataDir, { recursive: true });
+  await fs.writeFile(dbFile, JSON.stringify(db, null, 2), "utf-8");
 }
 
 /**
  * Jalankan operasi baca/tulis database secara terurut (serialized)
  * agar aman dari race condition.
  */
-async function withDb<T>(fn: (db: DatabaseSchema) => Promise<{ db?: DatabaseSchema; result: T }> | { db?: DatabaseSchema; result: T }): Promise<T> {
+async function withDb<T>(
+  fn: (
+    db: DatabaseSchema
+  ) => Promise<{ db?: DatabaseSchema; result: T }> | { db?: DatabaseSchema; result: T }
+): Promise<T> {
   const run = async () => {
     const current = await readDbFile();
     const { db: nextDb, result } = await fn(current);
@@ -249,6 +260,36 @@ export async function ensureDemoUser(): Promise<{ user: DbUser; data: UserData }
   });
 }
 
+/**
+ * Buat akun demo terisolasi khusus untuk satu sesi pengunjung agar dua pengunjung
+ * yang menekan tombol Demo secara bersamaan tidak saling menimpa progres (PF-012).
+ */
+export async function createIsolatedDemoUser(): Promise<{ user: DbUser; data: UserData }> {
+  await ensureDemoUser();
+  return withDb((db) => {
+    const shortId = randomUUID().slice(0, 8);
+    const now = new Date().toISOString();
+    const isolatedUser: DbUser = {
+      id: `demo_${shortId}`,
+      name: DEMO_USER_NAME,
+      email: `demo+${shortId}@pathforge.id`,
+      passwordHash: hashPassword(DEMO_PASSWORD),
+      createdAt: now,
+      updatedAt: now,
+    };
+    const isolatedData = buildDemoData();
+    isolatedData.settings.showOnLeaderboard = false;
+
+    db.users.push(isolatedUser);
+    db.userData[isolatedUser.id] = isolatedData;
+
+    return {
+      db,
+      result: { user: isolatedUser, data: isolatedData },
+    };
+  });
+}
+
 export async function getUserData(userId: string): Promise<UserData> {
   return withDb((db) => {
     const existing = db.userData[userId];
@@ -279,7 +320,6 @@ export async function createSession(
     const now = new Date();
     const expires = new Date(now.getTime() + ttlDays * 24 * 60 * 60 * 1000);
 
-    // Bersihkan sesi yang sudah kedaluwarsa
     db.sessions = db.sessions.filter((s) => new Date(s.expiresAt) > now);
 
     const session: DbSession = {
@@ -316,12 +356,9 @@ export async function findSessionWithUser(
       return { db, result: null };
     }
 
-    session.lastActiveAt = now.toISOString();
     const data = normalizeUserData(db.userData[user.id]);
-    db.userData[user.id] = data;
 
     return {
-      db,
       result: { session, user, data },
     };
   });
@@ -375,23 +412,32 @@ export async function updateUserAccount(
 
 export async function updateUserPassword(
   userId: string,
-  newPasswordHash: string
+  newPasswordHash: string,
+  keepTokenHash?: string
 ): Promise<boolean> {
   return withDb((db) => {
     const user = db.users.find((u) => u.id === userId);
     if (!user) return { result: false };
     user.passwordHash = newPasswordHash;
     user.updatedAt = new Date().toISOString();
+    db.sessions = db.sessions.filter(
+      (s) => s.userId !== userId || (keepTokenHash && s.tokenHash === keepTokenHash)
+    );
+    db.passwordResetOtps = db.passwordResetOtps.filter((o) => o.userId !== userId);
     return { db, result: true };
   });
 }
 
 export async function deleteUserAccount(userId: string): Promise<boolean> {
   return withDb((db) => {
-    const exists = db.users.some((u) => u.id === userId);
-    if (!exists) return { result: false };
+    const targetUser = db.users.find((u) => u.id === userId);
+    if (!targetUser) return { result: false };
+    const targetEmail = targetUser.email.toLowerCase();
     db.users = db.users.filter((u) => u.id !== userId);
     db.sessions = db.sessions.filter((s) => s.userId !== userId);
+    db.passwordResetOtps = db.passwordResetOtps.filter(
+      (o) => o.userId !== userId && o.email.toLowerCase() !== targetEmail
+    );
     delete db.userData[userId];
     return { db, result: true };
   });
@@ -413,10 +459,9 @@ export async function createPasswordResetOtp(
     }
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString(); // 15 menit
+    const expiresAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
     const code = generateOtpCode();
 
-    // Nonaktifkan OTP lama milik user ini
     db.passwordResetOtps.forEach((otp) => {
       if (otp.userId === user.id) otp.used = true;
     });
@@ -475,15 +520,12 @@ export async function verifyOtpAndResetPassword(
     otp.used = true;
     user.passwordHash = newPasswordHash;
     user.updatedAt = now.toISOString();
+    db.sessions = db.sessions.filter((s) => s.userId !== user.id);
 
     return { db, result: { ok: true } };
   });
 }
 
-/**
- * Ubah data progres satu pengguna secara atomik (baca + tulis dalam satu antrean).
- * Jika mutator tidak mengembalikan `next`, database tidak ditulis ulang.
- */
 export async function mutateUserData<T>(
   userId: string,
   mutator: (current: UserData) => { next?: UserData; result: T }
@@ -497,9 +539,6 @@ export async function mutateUserData<T>(
   });
 }
 
-/**
- * Cari semua pengguna yang slug namanya cocok (dipakai untuk portofolio publik).
- */
 export async function findUsersByProfileSlug(
   slug: string
 ): Promise<{ user: DbUser; data: UserData }[]> {
@@ -513,9 +552,6 @@ export async function findUsersByProfileSlug(
   });
 }
 
-/**
- * Ambil seluruh pengguna beserta data progresnya (dipakai untuk Leaderboard).
- */
 export async function listAllUsersWithData(): Promise<
   { user: DbUser; data: UserData }[]
 > {

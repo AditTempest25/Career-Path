@@ -6,9 +6,7 @@ import {
   requireSession,
 } from "@/lib/server/api";
 import { saveUserData } from "@/lib/server/db";
-import { normalizeUserData } from "@/lib/seed-data";
-import { makeActivity } from "@/lib/seed-data";
-import type { UserData } from "@/lib/types";
+import { makeActivity, validateBackupPayload } from "@/lib/seed-data";
 
 export async function GET() {
   try {
@@ -45,26 +43,22 @@ export async function POST(request: Request) {
     const auth = await requireSession();
     if (auth.response) return auth.response;
 
-    const body = (await readJson(request)) as {
-      data?: Partial<UserData>;
-      backup?: { data?: Partial<UserData> };
-    } | null;
-
-    const rawData = body?.backup?.data ?? body?.data;
-    if (!rawData || typeof rawData !== "object") {
-      return errorResponse(
-        "Format file backup tidak valid. Pastikan memilih file .json dari PathForge.",
-        400
-      );
+    const body = await readJson(request);
+    // PF-003: Validasi ketat versi dan struktur backup sebelum menimpa data progres
+    const validated = validateBackupPayload(body);
+    if (!validated.ok) {
+      return errorResponse(validated.error, 400);
     }
 
-    const normalized = normalizeUserData(rawData);
-    normalized.activity = [
-      makeActivity("profile", "Memulihkan progres dari file backup (.json)", 0),
-      ...normalized.activity,
-    ];
+    const nextData = {
+      ...validated.data,
+      activity: [
+        makeActivity("profile", "Memulihkan progres dari file backup (.json)", 0),
+        ...validated.data.activity,
+      ],
+    };
 
-    const saved = await saveUserData(auth.session.rawUser.id, normalized);
+    const saved = await saveUserData(auth.session.rawUser.id, nextData);
 
     return NextResponse.json({
       ok: true,

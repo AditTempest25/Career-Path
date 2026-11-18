@@ -186,6 +186,7 @@ export interface Settings {
   emailNotifications: boolean;
   weeklyReminder: boolean;
   publicPortfolio: boolean;
+  showOnLeaderboard?: boolean;
 }
 
 export interface JobApplication {
@@ -227,6 +228,7 @@ export interface UserData {
   studyPlan?: StudyPlan;
   dailyChallenge?: DailyChallengeState;
   moduleNotes?: Record<string, string>;
+  certificates?: Record<string, string>;
   activity: Activity[];
   settings: Settings;
 }

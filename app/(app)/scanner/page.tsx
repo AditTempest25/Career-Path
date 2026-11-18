@@ -56,8 +56,14 @@ export default function ResumeScannerPage() {
   const career = getCareer(targetCareer);
 
   const handleScan = async () => {
-    if (!resumeText.trim()) {
+    const trimmed = resumeText.trim();
+    if (!trimmed) {
       toast.error("Harap tempelkan (paste) teks CV atau ringkasan profilmu terlebih dahulu.");
+      return;
+    }
+    if (trimmed.length < 10) {
+      setScanResult(null);
+      toast.error("Teks CV/resume terlalu pendek (minimal 10 karakter).");
       return;
     }
 
@@ -69,11 +75,11 @@ export default function ResumeScannerPage() {
         credentials: "include",
         body: JSON.stringify({
           action: "analyze",
-          resumeText,
+          resumeText: trimmed,
           targetCareerId: targetCareer,
         }),
       });
-      const payload = (await res.json()) as {
+      const payload = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         result?: ScanResult;
         error?: string;
@@ -83,15 +89,21 @@ export default function ResumeScannerPage() {
         toast.success(`Pemindaian selesai! Ditemukan ${payload.result.detectedSkills.length} keahlian.`);
         return;
       }
+      // PF-030: Jangan jalankan fallback lokal pada error validasi input (HTTP 4xx)
+      if (res.status >= 400 && res.status < 500) {
+        setScanResult(null);
+        toast.error(payload.error || "Input CV tidak memenuhi syarat validasi.");
+        return;
+      }
     } catch {
-      /* fallback ke analisis lokal jika offline */
+      /* fallback ke analisis lokal hanya jika jaringan/server sedang tidak dapat dijangkau */
     } finally {
       setIsScanning(false);
     }
 
-    const fallbackResult = analyzeResumeText(resumeText, targetCareer);
+    const fallbackResult = analyzeResumeText(trimmed, targetCareer);
     setScanResult(fallbackResult);
-    toast.success(`Pemindaian selesai! Ditemukan ${fallbackResult.detectedSkills.length} keahlian.`);
+    toast.success(`Pemindaian selesai (Mode Lokal)! Ditemukan ${fallbackResult.detectedSkills.length} keahlian.`);
   };
 
   const handleLoadSample = () => {

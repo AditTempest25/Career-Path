@@ -46,15 +46,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <CommandPalette />
             <Link
               href="/progress"
-              className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted sm:flex"
+              className="hidden shrink-0 whitespace-nowrap items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted lg:flex"
               title="Streak belajar"
             >
-              <Flame className="h-3.5 w-3.5 text-orange-500" />
+              <Flame className="h-3.5 w-3.5 text-orange-700 dark:text-orange-400" />
               {streak} hari
             </Link>
             <Link
               href="/progress"
-              className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+              className="flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
               title={`${xp} XP total`}
             >
               <Zap className="h-3.5 w-3.5" />
@@ -63,8 +63,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex-1 p-4 md:p-6 lg:p-8">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
+        <div className="flex-1 min-w-0 overflow-x-clip p-4 md:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-6xl min-w-0">{children}</div>
         </div>
       </SidebarInset>
     </SidebarProvider>

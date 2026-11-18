@@ -57,15 +57,15 @@ export default function JobsPage() {
 
   const handleApply = (job: Job) => {
     applyJob(job.id, job.title, job.company.name);
-    toast.success(`Lamaran untuk "${job.title}" di ${job.company.name} berhasil dikirim! 🚀`);
+    toast.success(`Simulasi lamaran untuk "${job.title}" di ${job.company.name} berhasil dicatat! (+25 XP) 🚀`);
     setSelectedJob(null);
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       <PageHeader
-        title="Peluang Kerja & Magang"
-        description="Lowongan terkurasi di perusahaan teknologi Indonesia yang dicocokkan otomatis dengan kesiapan portofoliomu."
+        title="Simulasi Peluang Kerja & Magang"
+        description="Simulasi pencocokan lowongan kerja di perusahaan Indonesia berdasarkan kesiapan portofoliomu (mode latihan internal, tidak mengirim data ke perusahaan eksternal)."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -102,9 +102,9 @@ export default function JobsPage() {
                 {career && <Badge variant="secondary">{career.title}</Badge>}
               </div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed max-w-xl">
-                Portofolio publikmu telah terverifikasi dengan{" "}
+                Portofolio publikmu telah dilengkapi{" "}
                 <span className="font-semibold text-foreground">{Object.keys(data.submissions).length} proyek simulasi</span>.
-                Recruiter dapat melihat hasil karyamu secara langsung saat melamar.
+                Fitur ini menyimulasikan bagaimana perekrut meninjau kecocokan skill dan portofoliomu saat melamar kerja.
               </p>
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function JobsPage() {
                       </Button>
                       {isApplied ? (
                         <Button size="sm" variant="secondary" disabled className="text-xs h-8 gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-success" /> Dilamar
+                          <CheckCircle2 className="h-3.5 w-3.5 text-success" /> Simulasi Terkirim
                         </Button>
                       ) : (
                         <Button
@@ -276,7 +276,7 @@ export default function JobsPage() {
                           onClick={() => setSelectedJob(job)}
                           className="text-xs h-8 gap-1"
                         >
-                          Lamar Cepat <ArrowRight className="h-3.5 w-3.5" />
+                          Simulasi Lamar <ArrowRight className="h-3.5 w-3.5" />
                         </Button>
                       )}
                     </div>
@@ -291,10 +291,10 @@ export default function JobsPage() {
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="border-b border-border pb-4">
             <h3 className="font-[family-name:var(--font-heading)] text-lg font-bold">
-              Riwayat Lamaran Terkirim ({appliedList.length})
+              Riwayat Simulasi Lamaran ({appliedList.length})
             </h3>
             <p className="text-xs text-muted-foreground">
-              Status proses lamaran yang telah kamu kirimkan melalui PathForge.
+              Catatan simulasi lamaran latihan yang telah kamu uji di PathForge (tersimpan secara internal).
             </p>
           </div>
 
@@ -323,10 +323,10 @@ export default function JobsPage() {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                          {app.status}
+                          Simulasi · {app.status}
                         </Badge>
                         <span className="block text-[11px] text-muted-foreground mt-0.5">
-                          Dikirim {formatDate(app.appliedAt)}
+                          Dicatat {formatDate(app.appliedAt)}
                         </span>
                       </div>
                       <Button asChild variant="outline" size="sm" className="h-8 text-xs">
@@ -362,6 +362,8 @@ export default function JobsPage() {
                 </div>
               </div>
               <button
+                type="button"
+                aria-label="Tutup rincian lowongan"
                 onClick={() => setSelectedJob(null)}
                 className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
@@ -408,10 +410,10 @@ export default function JobsPage() {
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-primary font-semibold text-xs">
                   <UserCheck className="h-4 w-4" />
-                  Portofolio PathForge yang Dilampirkan
+                  Simulasi Lampiran Portofolio PathForge
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Recruiter akan menerima link portofolio publikmu lengkap dengan review kode & skor kesiapan kerja:
+                  Ini adalah simulasi latihan internal. Tidak ada data yang dikirim ke perusahaan eksternal. Tautan portofolio yang disimulasikan:
                 </p>
                 <div className="rounded-lg bg-background p-2 font-mono text-[11px] text-foreground break-all border border-border">
                   {portfolioUrl}
@@ -426,11 +428,11 @@ export default function JobsPage() {
               </Button>
               {appliedMap[selectedJob.id] ? (
                 <Button disabled size="sm" variant="secondary" className="gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-success" /> Lamaran Sudah Terkirim
+                  <CheckCircle2 className="h-4 w-4 text-success" /> Simulasi Sudah Dicatat
                 </Button>
               ) : (
                 <Button size="sm" onClick={() => handleApply(selectedJob)} className="gap-2">
-                  <Send className="h-4 w-4" /> Kirim Lamaran Cepat
+                  <Send className="h-4 w-4" /> Kirim Simulasi Lamaran (+25 XP)
                 </Button>
               )}
             </div>

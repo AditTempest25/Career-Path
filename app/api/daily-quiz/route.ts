@@ -8,20 +8,20 @@ import {
 } from "@/lib/server/api";
 import { getAuthenticatedSession } from "@/lib/server/session";
 import { mutateUserData } from "@/lib/server/db";
-import { dailyQuizPool, getDailyQuizForUser } from "@/lib/data/daily-quiz";
+import { getDailyQuizForUser } from "@/lib/data/daily-quiz";
 import { makeActivity } from "@/lib/seed-data";
 import type { CareerId } from "@/lib/types";
 
+// PF-028: Hanya terima daftar jawaban dari klien; jangan terima xpEarned dari klien atau memberi XP default tanpa jawaban.
 const submitQuizSchema = z.object({
-  xpEarned: z.number().int().min(0).max(50).optional(),
   answers: z
     .array(
       z.object({
-        questionId: z.string(),
+        questionId: z.string().trim().min(1, "ID soal wajib diisi."),
         selectedIndex: z.number().int().min(0).max(3),
       })
     )
-    .optional(),
+    .min(1, "Jawaban kuis harian wajib dikirim."),
 });
 
 export async function GET(request: Request) {
@@ -32,7 +32,12 @@ export async function GET(request: Request) {
       session?.data.activeCareer ||
       "web-developer") as CareerId;
 
-    const questions = getDailyQuizForUser(careerId);
+    const rawQuestions = getDailyQuizForUser(careerId);
+    // PF-028: Jangan kirim kunci jawaban (correctIndex & explanation) pada pembacaan soal
+    const questions = rawQuestions.map(
+      ({ correctIndex: _c, explanation: _e, ...publicFields }) => publicFields
+    );
+
     const todayStr = new Date().toISOString().split("T")[0];
     const isCompletedToday =
       session?.data.dailyChallenge?.lastCompletedDate === todayStr;
@@ -56,58 +61,115 @@ export async function POST(request: Request) {
     if (auth.response) return auth.response;
 
     const body = await readJson(request);
-    const parsed = submitQuizSchema.safeParse(body ?? {});
+    const parsed = submitQuizSchema.safeParse(body);
     if (!parsed.success) {
       return validationError(parsed.error, "Jawaban kuis harian tidak valid.");
     }
 
-    // Jika client mengirimkan daftar jawaban, hitung skor dan XP di server
-    let computedXp = parsed.data.xpEarned ?? 25;
-    let correctCount = 0;
+    const careerId = (auth.session.data.activeCareer || "web-developer") as CareerId;
+    const activeQuestions = getDailyQuizForUser(careerId);
+    const activeQuestionMap = new Map(activeQuestions.map((q) => [q.id, q]));
 
-    if (parsed.data.answers && parsed.data.answers.length > 0) {
-      for (const ans of parsed.data.answers) {
-        const q = dailyQuizPool.find((item) => item.id === ans.questionId);
-        if (q && q.correctIndex === ans.selectedIndex) {
-          correctCount++;
-        }
-      }
-      computedXp = correctCount > 0 ? Math.min(25, correctCount * 8 + 1) : 10;
+    if (parsed.data.answers.length !== activeQuestions.length) {
+      return errorResponse(
+        `Harap jawab seluruh ${activeQuestions.length} soal kuis harian yang berlaku.`,
+        400
+      );
     }
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const seenIds = new Set<string>();
+    let correctCount = 0;
+    const gradedResults: {
+      questionId: string;
+      selectedIndex: number;
+      correctIndex: number;
+      isCorrect: boolean;
+      explanation: string;
+    }[] = [];
 
-    const { alreadyDoneToday, data } = await mutateUserData(
+    for (const ans of parsed.data.answers) {
+      if (seenIds.has(ans.questionId)) {
+        return errorResponse(
+          `Terdapat ID soal duplikat ("${ans.questionId}") pada pengiriman jawaban kuis.`,
+          400
+        );
+      }
+      seenIds.add(ans.questionId);
+
+      const q = activeQuestionMap.get(ans.questionId);
+      if (!q) {
+        return errorResponse(
+          `Soal kuis "${ans.questionId}" tidak termasuk dalam set soal harian yang berlaku untuk jalur kariermu.`,
+          400
+        );
+      }
+
+      const isCorrect = q.correctIndex === ans.selectedIndex;
+      if (isCorrect) correctCount++;
+      gradedResults.push({
+        questionId: q.id,
+        selectedIndex: ans.selectedIndex,
+        correctIndex: q.correctIndex,
+        isCorrect,
+        explanation: q.explanation,
+      });
+    }
+
+    // PF-028: Hitung XP murni di server dari jawaban benar terhadap set soal yang berlaku (0..25 XP)
+    const computedXp = Math.round((correctCount / activeQuestions.length) * 25);
+
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const yesterday = new Date(now);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    const { alreadyDoneToday, xpAwarded, data } = await mutateUserData(
       auth.session.rawUser.id,
       (current) => {
-        const wasDoneToday =
-          current.dailyChallenge?.lastCompletedDate === todayStr;
-        const awardedXp = wasDoneToday ? 0 : computedXp;
+        const prevChallenge = current.dailyChallenge;
+        const wasDoneToday = prevChallenge?.lastCompletedDate === todayStr;
+
+        // PF-028: Jika hari ini sudah diselesaikan, latihan ulang tidak menambah totalAnswered, streak, atau XP
+        if (wasDoneToday) {
+          return {
+            result: {
+              alreadyDoneToday: true,
+              xpAwarded: 0,
+              data: current,
+            },
+          };
+        }
+
+        const isConsecutive = prevChallenge?.lastCompletedDate === yesterdayStr;
+        const nextStreak = isConsecutive
+          ? (prevChallenge?.streakCount ?? 0) + 1
+          : 1;
 
         const nextData = {
           ...current,
           dailyChallenge: {
             lastCompletedDate: todayStr,
-            streakCount: wasDoneToday
-              ? current.dailyChallenge?.streakCount ?? 1
-              : (current.dailyChallenge?.streakCount ?? 0) + 1,
-            totalAnswered: (current.dailyChallenge?.totalAnswered ?? 0) + 1,
+            streakCount: nextStreak,
+            totalAnswered: (prevChallenge?.totalAnswered ?? 0) + 1,
           },
-          activity: wasDoneToday
-            ? current.activity
-            : [
-                makeActivity(
-                  "quiz",
-                  `Menyelesaikan Tantangan Kuis Kilat Harian (+${awardedXp} XP)`,
-                  awardedXp
-                ),
-                ...current.activity,
-              ],
+          activity: [
+            makeActivity(
+              "quiz",
+              `Menyelesaikan Tantangan Kuis Kilat Harian (+${computedXp} XP)`,
+              computedXp
+            ),
+            ...current.activity,
+          ],
         };
 
         return {
           next: nextData,
-          result: { alreadyDoneToday: wasDoneToday, data: nextData },
+          result: {
+            alreadyDoneToday: false,
+            xpAwarded: computedXp,
+            data: nextData,
+          },
         };
       }
     );
@@ -115,7 +177,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       alreadyDoneToday,
-      xpAwarded: alreadyDoneToday ? 0 : computedXp,
+      correctCount,
+      totalQuestions: activeQuestions.length,
+      results: gradedResults,
+      xpAwarded,
       data,
     });
   } catch (error) {

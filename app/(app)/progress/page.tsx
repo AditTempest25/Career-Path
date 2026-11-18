@@ -32,6 +32,7 @@ import {
   getSkillLevels,
   getStreak,
   getTotalXp,
+  isCertificateEligible,
   XP_PER_LEVEL,
 } from "@/lib/progress";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export default function ProgressPage() {
   const { data } = useApp();
   const career = getCareer(data.activeCareer);
   const [certOpen, setCertOpen] = useState(false);
+  const certEligible = career ? isCertificateEligible(career, data) : false;
 
   const xp = getTotalXp(data);
   const level = getLevel(xp);
@@ -65,7 +67,8 @@ export default function ProgressPage() {
             onClick={() => setCertOpen(true)}
             className="gap-1.5 text-primary border-primary/30"
           >
-            <Award className="h-4 w-4" /> Cetak Sertifikat Digital
+            <Award className="h-4 w-4" />
+            {certEligible ? "Cetak Sertifikat Digital" : "Syarat Sertifikat (Terkunci)"}
           </Button>
         }
       />

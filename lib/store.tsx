@@ -13,7 +13,7 @@ import type {
   User,
   UserData,
 } from "@/lib/types";
-import { careers, getAllModules, getCareer } from "@/lib/data/careers";
+import { getCareer } from "@/lib/data/careers";
 import { getSimulation } from "@/lib/data/simulations";
 import { calculateScores } from "@/lib/data/assessment";
 import { evaluateSubmission } from "@/lib/feedback";
@@ -22,6 +22,7 @@ import {
   createEmptyData,
   DEMO_EMAIL,
   DEMO_PASSWORD,
+  makeActivity,
   normalizeUserData,
 } from "@/lib/seed-data";
 
@@ -32,10 +33,6 @@ const SESSION_KEY = "pathforge:session";
 const dataKey = (id: string) => `pathforge:data:${id}`;
 
 type PublicUser = Omit<User, "password">;
-
-function uid() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -56,14 +53,38 @@ function write(key: string, value: unknown) {
   }
 }
 
-function makeActivity(type: ActivityType, label: string, xp: number, date?: Date): Activity {
-  return { id: uid(), type, label, xp, date: (date ?? new Date()).toISOString() };
-}
-
 /* ---------------- Context ---------------- */
 
 export interface AuthResult {
   ok: boolean;
+  error?: string;
+}
+
+export interface ToggleModuleResult {
+  ok: boolean;
+  completed?: boolean;
+  error?: string;
+}
+
+export interface SaveAssessmentResult {
+  ok: boolean;
+  result?: AssessmentResult;
+  error?: string;
+}
+
+export interface QuizSubmitResponse {
+  ok: boolean;
+  alreadyDoneToday?: boolean;
+  correctCount?: number;
+  totalQuestions?: number;
+  xpAwarded: number;
+  results?: {
+    questionId: string;
+    selectedIndex: number;
+    correctIndex: number;
+    isCorrect: boolean;
+    explanation: string;
+  }[];
   error?: string;
 }
 
@@ -77,12 +98,16 @@ interface AppContextValue {
   logout: () => Promise<void>;
   updateAccount: (input: { name?: string; email?: string }) => Promise<AuthResult>;
   changePassword: (current: string, next: string) => Promise<AuthResult>;
-  deleteAccount: () => Promise<void>;
-  saveAssessment: (answers: Record<string, string>, profile: Partial<Profile>) => AssessmentResult;
-  completeOnboarding: (careerId: CareerId) => void;
+  deleteAccount: () => Promise<AuthResult>;
+  saveAssessment: (
+    answers: Record<string, string>,
+    profile: Partial<Profile>
+  ) => Promise<SaveAssessmentResult>;
+  completeOnboarding: (careerId: CareerId) => Promise<AuthResult>;
   setActiveCareer: (careerId: CareerId) => void;
-  toggleModule: (moduleId: string) => boolean;
+  toggleModule: (moduleId: string) => Promise<ToggleModuleResult>;
   saveDraft: (simulationId: string, answers: Record<string, string>) => void;
+  flushDraft: (simulationId?: string) => Promise<void>;
   submitSimulation: (simulationId: string, answers: Record<string, string>) => Submission | null;
   toggleFeatured: (simulationId: string) => void;
   updateProfile: (patch: Partial<Profile>) => void;
@@ -91,9 +116,11 @@ interface AppContextValue {
   saveInterviewPractice: (questionId: string, answer: string, rating?: number) => void;
   syncScannedModules: (moduleIds: string[]) => number;
   saveStudyPlan: (plan: StudyPlan) => void;
-  completeDailyChallenge: (xpEarned: number) => void;
+  completeDailyChallenge: (
+    answers: { questionId: string; selectedIndex: number }[]
+  ) => Promise<QuizSubmitResponse>;
   saveModuleNote: (moduleId: string, note: string) => void;
-  importBackupData: (rawData: Partial<UserData>) => Promise<AuthResult>;
+  importBackupData: (rawBackup: unknown) => Promise<AuthResult>;
   resetProgress: () => void;
 }
 
@@ -104,7 +131,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<PublicUser | null>(null);
   const [data, setData] = React.useState<UserData>(createEmptyData);
 
-  // Sinkronisasi sesi dari Backend HTTP-Only Cookie saat aplikasi dimuat
+  // Nomor revisi monotonik untuk mencegah respons lama menimpa state yang lebih baru (PF-013)
+  const revisionRef = React.useRef(0);
+
+  // Debounce timer untuk autosave draft simulator (PF-026)
+  const draftTimerRef = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingDraftsRef = React.useRef<Record<string, Record<string, string>>>({});
+
   React.useEffect(() => {
     let active = true;
 
@@ -134,7 +167,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
-        // Fallback ke localStorage jika sedang offline
         const sessionId = read<string | null>(SESSION_KEY, null);
         if (sessionId && active) {
           const users = read<User[]>(USERS_KEY, []);
@@ -162,38 +194,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const syncDataToServer = React.useCallback((nextData: UserData) => {
-    fetch("/api/user/data", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ data: nextData }),
-    }).catch(() => {
-      /* abaikan error jaringan sementara, data tetap tersimpan di localStorage */
-    });
-  }, []);
+  const syncDataToServer = React.useCallback(
+    (nextData: UserData, rev: number) => {
+      fetch("/api/user/data", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ data: nextData }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((payload: { ok?: boolean; data?: UserData } | null) => {
+          if (payload?.ok && payload.data && user && revisionRef.current === rev) {
+            const normalized = normalizeUserData(payload.data);
+            setData(normalized);
+            write(dataKey(user.id), normalized);
+          }
+        })
+        .catch(() => {
+          /* abaikan error jaringan sementara */
+        });
+    },
+    [user]
+  );
 
   const commit = React.useCallback(
     (
       updater: (prev: UserData) => UserData,
       options?: { skipGenericSync?: boolean }
     ) => {
+      const rev = ++revisionRef.current;
       setData((prev) => {
         const next = updater(prev);
         if (user) {
           write(dataKey(user.id), next);
           if (!options?.skipGenericSync) {
-            syncDataToServer(next);
+            syncDataToServer(next, rev);
           }
         }
         return next;
       });
+      return rev;
     },
     [user, syncDataToServer]
   );
 
   const callDedicatedEndpoint = React.useCallback(
-    (url: string, method: "POST" | "PATCH", body: unknown) => {
+    (url: string, method: "POST" | "PATCH", body: unknown, rev: number) => {
       fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -202,20 +248,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((payload: { ok?: boolean; data?: UserData } | null) => {
-          if (payload?.ok && payload.data && user) {
+          if (payload?.ok && payload.data && user && revisionRef.current === rev) {
             const normalized = normalizeUserData(payload.data);
             setData(normalized);
             write(dataKey(user.id), normalized);
           }
         })
         .catch(() => {
-          /* abaikan error jaringan sementara, state lokal sudah tersimpan */
+          /* state lokal tetap terjaga */
         });
     },
     [user]
   );
 
   const startSession = (u: PublicUser, d: UserData) => {
+    revisionRef.current++;
     const normalized = normalizeUserData(d);
     write(SESSION_KEY, u.id);
     write(dataKey(u.id), normalized);
@@ -297,7 +344,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       return { ok: false, error: payload.error || "Gagal masuk ke akun demo." };
     } catch {
-      // Fallback lokal jika server tidak terjangkau
       const demoUser: PublicUser = {
         id: "demo-user",
         name: "Raka Pratama",
@@ -357,7 +403,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const changePassword: AppContextValue["changePassword"] = async (currentPassword, newPassword) => {
+  const changePassword: AppContextValue["changePassword"] = async (
+    currentPassword,
+    newPassword
+  ) => {
     if (!user) return { ok: false, error: "Tidak ada sesi aktif." };
     try {
       const res = await fetch("/api/auth/account", {
@@ -386,114 +435,284 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // PF-004: Hanya bersihkan state dan konfirmasi penghapusan jika server mengembalikan 2xx OK
   const deleteAccount: AppContextValue["deleteAccount"] = async () => {
-    if (!user) return;
+    if (!user) return { ok: false, error: "Tidak ada sesi aktif." };
     const currentId = user.id;
     try {
-      await fetch("/api/auth/account", {
+      const res = await fetch("/api/auth/account", {
         method: "DELETE",
         credentials: "include",
       });
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+      } | null;
+
+      if (!res.ok || !payload?.ok) {
+        return {
+          ok: false,
+          error:
+            payload?.error ||
+            "Gagal menghapus akun dari server. Silakan coba lagi.",
+        };
+      }
+
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(dataKey(currentId));
+        window.localStorage.removeItem(SESSION_KEY);
+      }
+      setUser(null);
+      setData(createEmptyData());
+      return { ok: true };
     } catch {
-      /* abaikan error jaringan */
+      return {
+        ok: false,
+        error: "Gagal menghubungi server saat menghapus akun. Sesi kamu masih aktif.",
+      };
     }
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(dataKey(currentId));
-      window.localStorage.removeItem(SESSION_KEY);
-    }
-    setUser(null);
-    setData(createEmptyData());
   };
 
-  const saveAssessment: AppContextValue["saveAssessment"] = (answers, profile) => {
-    const result: AssessmentResult = {
-      completedAt: new Date().toISOString(),
-      answers,
-      scores: calculateScores(answers),
-    };
-    commit(
-      (prev) => ({
-        ...prev,
-        assessment: result,
-        profile: { ...prev.profile, ...profile },
-        activity: [makeActivity("assessment", "Menyelesaikan asesmen Career GPS", 50), ...prev.activity],
-      }),
-      { skipGenericSync: true }
-    );
-    callDedicatedEndpoint("/api/assessment", "POST", { answers, profile });
-    return result;
+  // PF-006 & PF-013: Simpan hasil asesmen ke server dan tunggu konfirmasi sebelum menampilkan hasil
+  const saveAssessment: AppContextValue["saveAssessment"] = async (
+    answers,
+    profile
+  ) => {
+    try {
+      const rev = ++revisionRef.current;
+      const res = await fetch("/api/assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ answers, profile }),
+      });
+
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        assessment?: AssessmentResult;
+        data?: UserData;
+        error?: string;
+      } | null;
+
+      if (!res.ok || !payload?.ok || !payload.assessment || !payload.data) {
+        return {
+          ok: false,
+          error:
+            payload?.error ||
+            "Gagal menyimpan hasil asesmen ke server. Silakan coba lagi.",
+        };
+      }
+
+      const normalized = normalizeUserData(payload.data);
+      if (revisionRef.current === rev) {
+        setData(normalized);
+        if (user) {
+          write(dataKey(user.id), normalized);
+        }
+      }
+
+      return {
+        ok: true,
+        result: payload.assessment,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: "Gangguan jaringan saat menyimpan hasil asesmen ke server.",
+      };
+    }
   };
 
-  const completeOnboarding = (careerId: CareerId) => {
-    const career = getCareer(careerId);
-    commit(
-      (prev) => ({
-        ...prev,
-        onboarded: true,
-        activeCareer: careerId,
-        activity: [makeActivity("career", `Memilih jalur ${career?.title ?? careerId}`, 0), ...prev.activity],
-      }),
-      { skipGenericSync: true }
-    );
-    callDedicatedEndpoint("/api/careers", "PATCH", {
-      careerId,
-      completeOnboarding: true,
-    });
+  // PF-006 & PF-013: Tunggu konfirmasi server sebelum menandai onboarding selesai & pindah ke dashboard
+  const completeOnboarding: AppContextValue["completeOnboarding"] = async (
+    careerId
+  ) => {
+    try {
+      const rev = ++revisionRef.current;
+      const res = await fetch("/api/careers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          careerId,
+          completeOnboarding: true,
+        }),
+      });
+
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        data?: UserData;
+        error?: string;
+      } | null;
+
+      if (!res.ok || !payload?.ok || !payload.data?.onboarded) {
+        return {
+          ok: false,
+          error:
+            payload?.error ||
+            "Gagal menyelesaikan onboarding di server. Pastikan asesmen telah tersimpan.",
+        };
+      }
+
+      const normalized = normalizeUserData(payload.data);
+      if (revisionRef.current === rev) {
+        setData(normalized);
+        if (user) {
+          write(dataKey(user.id), normalized);
+        }
+      }
+
+      return { ok: true };
+    } catch {
+      return {
+        ok: false,
+        error: "Gangguan jaringan saat menyelesaikan onboarding di server.",
+      };
+    }
   };
 
   const setActiveCareer = (careerId: CareerId) => {
     const career = getCareer(careerId);
-    commit(
+    const rev = commit(
       (prev) => ({
         ...prev,
         activeCareer: careerId,
-        activity: [makeActivity("career", `Beralih ke jalur ${career?.title ?? careerId}`, 0), ...prev.activity],
+        activity: [
+          makeActivity("career", `Beralih ke jalur ${career?.title ?? careerId}`, 0),
+          ...prev.activity,
+        ],
       }),
       { skipGenericSync: true }
     );
-    callDedicatedEndpoint("/api/careers", "PATCH", { careerId });
+    callDedicatedEndpoint("/api/careers", "PATCH", { careerId }, rev);
   };
 
-  const toggleModule = (moduleId: string) => {
-    const isDone = data.completedModules.includes(moduleId);
-    const mod = findModule(moduleId);
-    commit(
-      (prev) => {
-        if (prev.completedModules.includes(moduleId)) {
-          return { ...prev, completedModules: prev.completedModules.filter((m) => m !== moduleId) };
-        }
+  // PF-013: Tunggu konfirmasi server sebelum menyatakan modul selesai
+  const toggleModule: AppContextValue["toggleModule"] = async (moduleId) => {
+    try {
+      const rev = ++revisionRef.current;
+      const res = await fetch("/api/roadmap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "toggle-module", moduleId }),
+      });
+
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        completed?: boolean;
+        data?: UserData;
+        error?: string;
+      } | null;
+
+      if (!res.ok || !payload?.ok || !payload.data) {
         return {
-          ...prev,
-          completedModules: [...prev.completedModules, moduleId],
-          activity: mod
-            ? [makeActivity("module", `Menyelesaikan modul "${mod.title}"`, mod.hours * 10), ...prev.activity]
-            : prev.activity,
+          ok: false,
+          error:
+            payload?.error ||
+            "Gagal menyimpan perubahan modul ke server. Silakan coba lagi.",
         };
-      },
-      { skipGenericSync: true }
-    );
-    callDedicatedEndpoint("/api/roadmap", "POST", {
-      action: "toggle-module",
-      moduleId,
-    });
-    return !isDone;
+      }
+
+      if (revisionRef.current === rev) {
+        const normalized = normalizeUserData(payload.data);
+        setData(normalized);
+        if (user) {
+          write(dataKey(user.id), normalized);
+        }
+      }
+
+      return {
+        ok: true,
+        completed: payload.completed,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: "Gangguan jaringan saat menyimpan modul ke server.",
+      };
+    }
   };
 
-  const saveDraft = (simulationId: string, answers: Record<string, string>) => {
-    commit(
-      (prev) => ({ ...prev, drafts: { ...prev.drafts, [simulationId]: answers } }),
-      { skipGenericSync: true }
-    );
-    callDedicatedEndpoint("/api/simulator", "PATCH", {
-      action: "save-draft",
-      simulationId,
-      answers,
-    });
-  };
+  const flushDraft = React.useCallback(
+    async (simulationId?: string) => {
+      const ids = simulationId
+        ? [simulationId]
+        : Object.keys(pendingDraftsRef.current);
 
-  const submitSimulation: AppContextValue["submitSimulation"] = (simulationId, answers) => {
+      for (const id of ids) {
+        if (draftTimerRef.current[id]) {
+          clearTimeout(draftTimerRef.current[id]);
+          delete draftTimerRef.current[id];
+        }
+        const pendingAnswers = pendingDraftsRef.current[id];
+        if (!pendingAnswers) continue;
+        delete pendingDraftsRef.current[id];
+
+        const rev = ++revisionRef.current;
+        try {
+          const res = await fetch("/api/simulator", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              action: "save-draft",
+              simulationId: id,
+              answers: pendingAnswers,
+            }),
+          });
+          const payload = (await res.json().catch(() => null)) as {
+            ok?: boolean;
+            data?: UserData;
+          } | null;
+          if (res.ok && payload?.ok && payload.data && user && revisionRef.current === rev) {
+            const normalized = normalizeUserData(payload.data);
+            setData(normalized);
+            write(dataKey(user.id), normalized);
+          }
+        } catch {
+          /* draft lokal sudah tersimpan di localStorage */
+        }
+      }
+    },
+    [user]
+  );
+
+  // PF-026: Simpan ke state & localStorage seketika, namun kelompokkan (debounce 450ms) pengiriman PATCH ke server
+  const saveDraft = React.useCallback(
+    (simulationId: string, answers: Record<string, string>) => {
+      commit(
+        (prev) => ({
+          ...prev,
+          drafts: { ...prev.drafts, [simulationId]: answers },
+        }),
+        { skipGenericSync: true }
+      );
+
+      pendingDraftsRef.current[simulationId] = answers;
+      if (draftTimerRef.current[simulationId]) {
+        clearTimeout(draftTimerRef.current[simulationId]);
+      }
+      draftTimerRef.current[simulationId] = setTimeout(() => {
+        void flushDraft(simulationId);
+      }, 450);
+    },
+    [commit, flushDraft]
+  );
+
+  const submitSimulation: AppContextValue["submitSimulation"] = (
+    simulationId,
+    answers
+  ) => {
     const sim = getSimulation(simulationId);
     if (!sim) return null;
+
+    if (draftTimerRef.current[simulationId]) {
+      clearTimeout(draftTimerRef.current[simulationId]);
+      delete draftTimerRef.current[simulationId];
+    }
+    delete pendingDraftsRef.current[simulationId];
+
     const result = evaluateSubmission(sim, answers);
     const prevSub = data.submissions[simulationId];
     const submission: Submission = {
@@ -505,7 +724,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     const prevXp = prevSub ? Math.round((sim.xp * prevSub.score) / 100) : 0;
     const newXp = Math.round((sim.xp * result.score) / 100);
-    commit(
+    const rev = commit(
       (prev) => {
         const { [simulationId]: _removed, ...drafts } = prev.drafts;
         return {
@@ -513,22 +732,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           drafts,
           submissions: { ...prev.submissions, [simulationId]: submission },
           activity: [
-            makeActivity("simulation", `Mengirim simulasi "${sim.title}" (skor ${result.score})`, Math.max(0, newXp - prevXp)),
+            makeActivity(
+              "simulation",
+              `Mengirim simulasi "${sim.title}" (skor ${result.score})`,
+              Math.max(0, newXp - prevXp)
+            ),
             ...prev.activity,
           ],
         };
       },
       { skipGenericSync: true }
     );
-    callDedicatedEndpoint("/api/simulator/submit", "POST", {
-      simulationId,
-      answers,
-    });
+    callDedicatedEndpoint(
+      "/api/simulator/submit",
+      "POST",
+      {
+        simulationId,
+        answers,
+      },
+      rev
+    );
     return submission;
   };
 
   const toggleFeatured = (simulationId: string) => {
-    commit(
+    const rev = commit(
       (prev) => ({
         ...prev,
         featured: prev.featured.includes(simulationId)
@@ -537,10 +765,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }),
       { skipGenericSync: true }
     );
-    callDedicatedEndpoint("/api/simulator", "PATCH", {
-      action: "toggle-featured",
-      simulationId,
-    });
+    callDedicatedEndpoint(
+      "/api/simulator",
+      "PATCH",
+      {
+        action: "toggle-featured",
+        simulationId,
+      },
+      rev
+    );
   };
 
   const updateProfile = (patch: Partial<Profile>) => {
@@ -552,7 +785,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const applyJob = (jobId: string, jobTitle: string, companyName: string) => {
-    commit(
+    const rev = commit(
       (prev) => ({
         ...prev,
         appliedJobs: {
@@ -570,11 +803,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }),
       { skipGenericSync: true }
     );
-    callDedicatedEndpoint("/api/jobs", "POST", { jobId });
+    callDedicatedEndpoint("/api/jobs", "POST", { jobId }, rev);
   };
 
-  const saveInterviewPractice = (questionId: string, answer: string, rating?: number) => {
-    commit(
+  const saveInterviewPractice = (
+    questionId: string,
+    answer: string,
+    rating?: number
+  ) => {
+    const rev = commit(
       (prev) => ({
         ...prev,
         interviewPractice: {
@@ -587,22 +824,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         },
         activity: [
-          makeActivity("interview", `Latihan simulasi wawancara pertanyaan #${questionId}`, 15),
+          makeActivity(
+            "interview",
+            `Latihan simulasi wawancara pertanyaan #${questionId}`,
+            15
+          ),
           ...prev.activity,
         ],
       }),
       { skipGenericSync: true }
     );
-    callDedicatedEndpoint("/api/interview", "POST", {
-      questionId,
-      answer,
-      rating: rating ?? 4,
-    });
+    callDedicatedEndpoint(
+      "/api/interview",
+      "POST",
+      {
+        questionId,
+        answer,
+        rating: rating ?? 4,
+      },
+      rev
+    );
   };
 
   const syncScannedModules = (moduleIds: string[]): number => {
     let newlyAdded = 0;
-    commit(
+    const rev = commit(
       (prev) => {
         const existing = new Set(prev.completedModules);
         const toAdd = moduleIds.filter((id) => !existing.has(id));
@@ -612,7 +858,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           completedModules: [...prev.completedModules, ...toAdd],
           activity: [
-            makeActivity("scanner", `Sinkronisasi ${newlyAdded} modul dari hasil scan CV`, newlyAdded * 20),
+            makeActivity(
+              "scanner",
+              `Sinkronisasi ${newlyAdded} modul dari hasil scan CV`,
+              newlyAdded * 20
+            ),
             ...prev.activity,
           ],
         };
@@ -621,17 +871,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
 
     if (moduleIds.length > 0) {
-      callDedicatedEndpoint("/api/scanner/analyze", "POST", {
-        action: "sync",
-        moduleIds,
-      });
+      callDedicatedEndpoint(
+        "/api/scanner/analyze",
+        "POST",
+        {
+          action: "sync",
+          moduleIds,
+        },
+        rev
+      );
     }
 
     return newlyAdded;
   };
 
   const saveStudyPlan = (plan: StudyPlan) => {
-    commit(
+    const rev = commit(
       (prev) => ({
         ...prev,
         studyPlan: plan,
@@ -642,34 +897,76 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }),
       { skipGenericSync: true }
     );
-    callDedicatedEndpoint("/api/roadmap", "POST", {
-      action: "save-study-plan",
-      ...plan,
-    });
+    callDedicatedEndpoint(
+      "/api/roadmap",
+      "POST",
+      {
+        action: "save-study-plan",
+        ...plan,
+      },
+      rev
+    );
   };
 
-  const completeDailyChallenge = (xpEarned: number) => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    commit(
-      (prev) => ({
-        ...prev,
-        dailyChallenge: {
-          lastCompletedDate: todayStr,
-          streakCount: (prev.dailyChallenge?.streakCount ?? 0) + 1,
-          totalAnswered: (prev.dailyChallenge?.totalAnswered ?? 0) + 1,
-        },
-        activity: [
-          makeActivity("quiz", `Menyelesaikan Tantangan Kuis Kilat Harian (+${xpEarned} XP)`, xpEarned),
-          ...prev.activity,
-        ],
-      }),
-      { skipGenericSync: true }
-    );
-    callDedicatedEndpoint("/api/daily-quiz", "POST", { xpEarned });
+  // PF-007 & PF-028: Evaluasi kuis dan pemberian XP dihitung murni di server dari jawaban soal aktif
+  const completeDailyChallenge: AppContextValue["completeDailyChallenge"] = async (
+    answers
+  ) => {
+    const rev = ++revisionRef.current;
+    try {
+      const res = await fetch("/api/daily-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ answers }),
+      });
+
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        alreadyDoneToday?: boolean;
+        correctCount?: number;
+        totalQuestions?: number;
+        xpAwarded?: number;
+        results?: QuizSubmitResponse["results"];
+        data?: UserData;
+        error?: string;
+      } | null;
+
+      if (!res.ok || !payload?.ok || !payload.data) {
+        return {
+          ok: false,
+          xpAwarded: 0,
+          error: payload?.error || "Gagal menyimpan hasil kuis ke server.",
+        };
+      }
+
+      if (revisionRef.current === rev) {
+        const normalized = normalizeUserData(payload.data);
+        setData(normalized);
+        if (user) {
+          write(dataKey(user.id), normalized);
+        }
+      }
+
+      return {
+        ok: true,
+        alreadyDoneToday: payload.alreadyDoneToday,
+        correctCount: payload.correctCount,
+        totalQuestions: payload.totalQuestions,
+        xpAwarded: payload.xpAwarded ?? 0,
+        results: payload.results,
+      };
+    } catch {
+      return {
+        ok: false,
+        xpAwarded: 0,
+        error: "Gangguan jaringan saat menyimpan hasil kuis.",
+      };
+    }
   };
 
   const saveModuleNote = (moduleId: string, note: string) => {
-    commit(
+    const rev = commit(
       (prev) => ({
         ...prev,
         moduleNotes: {
@@ -679,47 +976,63 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }),
       { skipGenericSync: true }
     );
-    callDedicatedEndpoint("/api/roadmap", "POST", {
-      action: "save-note",
-      moduleId,
-      note,
-    });
+    callDedicatedEndpoint(
+      "/api/roadmap",
+      "POST",
+      {
+        action: "save-note",
+        moduleId,
+        note,
+      },
+      rev
+    );
   };
 
-  const importBackupData: AppContextValue["importBackupData"] = async (rawData) => {
-    if (!rawData || typeof rawData !== "object") {
-      return { ok: false, error: "Data backup tidak valid." };
-    }
-    const normalized = normalizeUserData(rawData);
-    normalized.activity = [
-      makeActivity("profile", "Memulihkan progres dari file backup (.json)", 0),
-      ...normalized.activity,
-    ];
-    setData(normalized);
-    if (user) {
-      write(dataKey(user.id), normalized);
+  // PF-003 & PF-013: Validasi dan simpan ke server terlebih dahulu sebelum mengganti state lokal
+  const importBackupData: AppContextValue["importBackupData"] = async (
+    rawBackup
+  ) => {
+    if (!rawBackup || typeof rawBackup !== "object") {
+      return { ok: false, error: "Format file backup tidak valid." };
     }
 
+    const rev = ++revisionRef.current;
     try {
       const res = await fetch("/api/user/backup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ data: normalized }),
+        body: JSON.stringify(rawBackup),
       });
-      const payload = (await res.json()) as {
+
+      const payload = (await res.json().catch(() => null)) as {
         ok?: boolean;
         data?: UserData;
         error?: string;
-      };
-      if (res.ok && payload.ok && payload.data && user) {
-        const serverNormalized = normalizeUserData(payload.data);
+      } | null;
+
+      if (!res.ok || !payload?.ok || !payload.data) {
+        return {
+          ok: false,
+          error:
+            payload?.error ||
+            "Gagal memulihkan data backup di server. Data sebelumnya tetap aman.",
+        };
+      }
+
+      const serverNormalized = normalizeUserData(payload.data);
+      if (revisionRef.current === rev) {
         setData(serverNormalized);
-        write(dataKey(user.id), serverNormalized);
+        if (user) {
+          write(dataKey(user.id), serverNormalized);
+        }
       }
       return { ok: true };
     } catch {
-      return { ok: true };
+      return {
+        ok: false,
+        error: "Gagal menghubungi server saat memulihkan backup.",
+      };
     }
   };
 
@@ -733,6 +1046,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       appliedJobs: {},
       interviewPractice: {},
       moduleNotes: {},
+      certificates: {},
       dailyChallenge: {
         streakCount: 0,
         totalAnswered: 0,
@@ -757,6 +1071,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActiveCareer,
     toggleModule,
     saveDraft,
+    flushDraft,
     submitSimulation,
     toggleFeatured,
     updateProfile,
@@ -772,15 +1087,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
-
-/** Cari modul di semua karier (dipakai untuk label aktivitas). */
-function findModule(moduleId: string) {
-  for (const c of careers) {
-    const m = getAllModules(c).find((x) => x.id === moduleId);
-    if (m) return m;
-  }
-  return undefined;
 }
 
 export function useApp() {

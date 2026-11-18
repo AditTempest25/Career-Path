@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   Activity,
   ActivityType,
@@ -5,7 +6,7 @@ import type {
   Settings,
   UserData,
 } from "@/lib/types";
-import { getAllModules, getCareer } from "@/lib/data/careers";
+import { careerIds, getAllModules, getCareer } from "@/lib/data/careers";
 import { getSimulation } from "@/lib/data/simulations";
 import { calculateScores } from "@/lib/data/assessment";
 import { evaluateSubmission } from "@/lib/feedback";
@@ -31,6 +32,7 @@ export const defaultSettings: Settings = {
   emailNotifications: true,
   weeklyReminder: true,
   publicPortfolio: false,
+  showOnLeaderboard: false,
 };
 
 export function createEmptyData(): UserData {
@@ -54,6 +56,7 @@ export function createEmptyData(): UserData {
       totalAnswered: 0,
     },
     moduleNotes: {},
+    certificates: {},
     activity: [],
     settings: { ...defaultSettings },
   };
@@ -71,7 +74,181 @@ export function normalizeUserData(data: Partial<UserData> | null | undefined): U
     studyPlan: data.studyPlan ?? empty.studyPlan,
     dailyChallenge: data.dailyChallenge ?? empty.dailyChallenge,
     moduleNotes: data.moduleNotes ?? {},
+    certificates: data.certificates ?? {},
     settings: { ...empty.settings, ...(data.settings ?? {}) },
+  };
+}
+
+const profileSchema = z.object({
+  headline: z.string(),
+  bio: z.string(),
+  location: z.string(),
+  education: z.string(),
+  status: z.enum(["mahasiswa", "fresh-graduate", "career-switcher", "bekerja"]),
+  weeklyHours: z.number().min(1).max(168),
+  linkedin: z.string(),
+  github: z.string(),
+  website: z.string(),
+});
+
+const settingsSchema = z.object({
+  emailNotifications: z.boolean(),
+  weeklyReminder: z.boolean(),
+  publicPortfolio: z.boolean(),
+  showOnLeaderboard: z.boolean().optional(),
+});
+
+export const userDataValidationSchema = z.object({
+  profile: profileSchema,
+  onboarded: z.boolean(),
+  assessment: z
+    .object({
+      completedAt: z.string(),
+      answers: z.record(z.string(), z.string()),
+      scores: z.record(z.string(), z.number()),
+    })
+    .nullable(),
+  activeCareer: z.enum(careerIds as [string, ...string[]]).nullable(),
+  completedModules: z.array(z.string()),
+  submissions: z.record(
+    z.string(),
+    z.object({
+      simulationId: z.string(),
+      answers: z.record(z.string(), z.string()),
+      score: z.number().min(0).max(100),
+      breakdown: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          score: z.number(),
+          max: z.number(),
+          met: z.boolean(),
+        })
+      ),
+      feedback: z.object({
+        summary: z.string(),
+        strengths: z.array(z.string()),
+        improvements: z.array(z.string()),
+      }),
+      submittedAt: z.string(),
+      attempts: z.number().int().min(1),
+    })
+  ),
+  drafts: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+  featured: z.array(z.string()),
+  appliedJobs: z
+    .record(
+      z.string(),
+      z.object({
+        jobId: z.string(),
+        appliedAt: z.string(),
+        status: z.enum(["Terkirim", "Ditinjau", "Wawancara"]),
+      })
+    )
+    .optional(),
+  interviewPractice: z
+    .record(
+      z.string(),
+      z.object({
+        questionId: z.string(),
+        answer: z.string(),
+        practicedAt: z.string(),
+        rating: z.number().optional(),
+      })
+    )
+    .optional(),
+  studyPlan: z
+    .object({
+      weeklyHours: z.number().min(1).max(168),
+      preferredDays: z.array(z.string()),
+      startDate: z.string().optional(),
+    })
+    .optional(),
+  dailyChallenge: z
+    .object({
+      lastCompletedDate: z.string().optional(),
+      streakCount: z.number().int().min(0),
+      totalAnswered: z.number().int().min(0),
+    })
+    .optional(),
+  moduleNotes: z.record(z.string(), z.string()).optional(),
+  certificates: z.record(z.string(), z.string()).optional(),
+  activity: z.array(
+    z.object({
+      id: z.string(),
+      type: z.string(),
+      label: z.string(),
+      date: z.string(),
+      xp: z.number(),
+    })
+  ),
+  settings: settingsSchema,
+});
+
+export const backupEnvelopeValidationSchema = z.object({
+  app: z.literal("PathForge"),
+  version: z.literal(1),
+  exportedAt: z.string().optional(),
+  user: z
+    .object({
+      name: z.string(),
+      email: z.string(),
+    })
+    .optional(),
+  data: userDataValidationSchema,
+});
+
+/**
+ * Validasi ketat untuk file Backup (.json) atau snapshot UserData.
+ * Menolak objek kosong `{}` atau struktur asing agar tidak menimpa progres yang sah.
+ */
+export function validateBackupPayload(
+  body: unknown
+): { ok: true; data: UserData } | { ok: false; error: string } {
+  if (!body || typeof body !== "object") {
+    return {
+      ok: false,
+      error: "Format file backup tidak valid. Pastikan memilih file .json dari PathForge.",
+    };
+  }
+
+  const record = body as Record<string, unknown>;
+
+  // Cek apakah berupa amplop backup { backup: { app, version, data } } atau { app, version, data }
+  const candidateEnvelope =
+    record.backup && typeof record.backup === "object" ? record.backup : record;
+
+  if ("app" in (candidateEnvelope as Record<string, unknown>) || "version" in (candidateEnvelope as Record<string, unknown>)) {
+    const envParsed = backupEnvelopeValidationSchema.safeParse(candidateEnvelope);
+    if (!envParsed.success) {
+      return {
+        ok: false,
+        error:
+          "Versi atau struktur file backup PathForge tidak sesuai (" +
+          (envParsed.error.errors[0]?.message || "format rusak") +
+          ").",
+      };
+    }
+    return {
+      ok: true,
+      data: normalizeUserData(envParsed.data.data as unknown as Partial<UserData>),
+    };
+  }
+
+  // Jika dikirim sebagai { data: UserData }
+  const innerData = "data" in record ? record.data : record;
+  const dataParsed = userDataValidationSchema.safeParse(innerData);
+  if (!dataParsed.success) {
+    return {
+      ok: false,
+      error:
+        "Format file backup tidak valid. Pastikan memilih file .json dari PathForge.",
+    };
+  }
+
+  return {
+    ok: true,
+    data: normalizeUserData(dataParsed.data as unknown as Partial<UserData>),
   };
 }
 
@@ -112,6 +289,7 @@ export function buildDemoData(): UserData {
     linkedin: "https://linkedin.com/in/demo",
   };
   data.settings.publicPortfolio = true;
+  data.settings.showOnLeaderboard = true;
 
   data.activity.push(makeActivity("assessment", "Menyelesaikan asesmen Career GPS", 50, daysAgo(20)));
   data.activity.push(makeActivity("career", "Memilih jalur Web Developer", 0, daysAgo(20)));

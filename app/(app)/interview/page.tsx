@@ -142,7 +142,7 @@ export default function InterviewPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
           {[
             { id: "all", label: "Semua Kategori" },
             { id: "hr-behavioral", label: "HR & Behavioral" },
@@ -324,13 +324,14 @@ export default function InterviewPage() {
                   <button
                     key={star}
                     type="button"
+                    aria-label={`Beri nilai evaluasi diri ${star} dari 5 bintang`}
                     onClick={() => setUserRating(star)}
-                    className="p-0.5 text-warning transition-transform hover:scale-110"
+                    className="p-0.5 text-warning-foreground dark:text-warning transition-transform hover:scale-110"
                   >
                     <Star
                       className={cn(
                         "h-4 w-4",
-                        userRating >= star ? "fill-warning text-warning" : "text-muted-foreground"
+                        userRating >= star ? "fill-warning text-warning-foreground dark:text-warning" : "text-muted-foreground"
                       )}
                     />
                   </button>

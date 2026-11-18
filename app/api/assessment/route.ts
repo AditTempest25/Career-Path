@@ -8,7 +8,11 @@ import {
 } from "@/lib/server/api";
 import { getAuthenticatedSession } from "@/lib/server/session";
 import { mutateUserData } from "@/lib/server/db";
-import { assessmentQuestions, calculateScores } from "@/lib/data/assessment";
+import {
+  assessmentQuestions,
+  calculateScores,
+  validateCompleteAssessmentAnswers,
+} from "@/lib/data/assessment";
 import { getCareer } from "@/lib/data/careers";
 import { makeActivity } from "@/lib/seed-data";
 import type { AssessmentResult, CareerId, Profile } from "@/lib/types";
@@ -61,6 +65,15 @@ export async function POST(request: Request) {
     }
 
     const { answers, profile, selectedCareerId } = parsed.data;
+    const completeness = validateCompleteAssessmentAnswers(answers);
+    if (!completeness.ok) {
+      return errorResponse(completeness.error, 400);
+    }
+
+    if (selectedCareerId && !getCareer(selectedCareerId)) {
+      return errorResponse("Jalur karier pilihan tidak ditemukan.", 404);
+    }
+
     const scores = calculateScores(answers);
 
     const result: AssessmentResult = {
@@ -87,7 +100,9 @@ export async function POST(request: Request) {
         ...current,
         assessment: result,
         onboarded: validCareer ? true : current.onboarded,
-        activeCareer: validCareer ? (validCareer.id as CareerId) : current.activeCareer,
+        activeCareer: validCareer
+          ? (validCareer.id as CareerId)
+          : current.activeCareer,
         profile: {
           ...current.profile,
           ...((profile as Partial<Profile>) ?? {}),

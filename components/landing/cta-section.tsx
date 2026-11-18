@@ -15,7 +15,7 @@ export function CTASection() {
             <h2 className="font-[family-name:var(--font-heading)] text-3xl font-bold text-primary-foreground md:text-4xl">
               <span className="text-balance">Ready to Forge Your Path?</span>
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-primary-foreground/80">
+            <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-primary-foreground">
               Join thousands of ambitious career starters who are building real
               skills and landing their dream roles.
             </p>
@@ -31,7 +31,7 @@ export function CTASection() {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-              <p className="text-sm text-primary-foreground/60">
+              <p className="text-sm text-primary-foreground">
                 No credit card required
               </p>
             </div>

@@ -68,9 +68,12 @@ export default function SalaryCalculatorPage() {
   const regionObj = REGIONS.find((r) => r.key === region)!;
   const ptkpObj = PTKP_OPTIONS.find((p) => p.key === ptkp)!;
 
-  // Base midpoint from career salary
+  // Base midpoint from career salary (dibulatkan ke kelipatan 0.5 juta agar selaras dengan step slider PF-017)
   const baseMid = (career.salary.min + career.salary.max) / 2;
-  const recommendedGross = Number((baseMid * levelObj.mult * regionObj.mult).toFixed(1));
+  const recommendedGross = Math.min(
+    60,
+    Math.max(3, Math.round(baseMid * levelObj.mult * regionObj.mult * 2) / 2)
+  );
 
   const [customGross, setCustomGross] = useState<number>(recommendedGross);
 
@@ -86,10 +89,10 @@ export default function SalaryCalculatorPage() {
   const bpjsJp = Math.min(customGross, 10) * 0.01;
   const totalBpjs = bpjsKesehatan + bpjsJht + bpjsJp;
 
-  // 3. Estimasi PPh 21 (TER / Tarif Efektif Rata-rata bulanan sederhana)
+  // 3. Estimasi Ilustratif PPh 21 (PF-016: Model disederhanakan untuk simulasi edukasi)
   let taxRate = 0;
   if (customGross > ptkpObj.thresholdJt) {
-    if (customGross <= 8) taxRate = 0.015;
+    if (customGross <= 8.55) taxRate = 0.015;
     else if (customGross <= 12) taxRate = 0.035;
     else if (customGross <= 18) taxRate = 0.06;
     else if (customGross <= 28) taxRate = 0.09;
@@ -119,8 +122,8 @@ export default function SalaryCalculatorPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       <PageHeader
-        title="Kalkulator Gaji & Take Home Pay Tech"
-        description="Simulasikan estimasi gaji bersih (Take Home Pay), potongan BPJS & PPh 21, serta proyeksi pertumbuhan penghasilan karier teknologi di Indonesia."
+        title="Kalkulator Gaji & Take Home Pay (Estimasi Ilustratif)"
+        description="Simulasikan estimasi ilustratif gaji bersih (Take Home Pay), potongan BPJS & PPh 21 sederhana, serta proyeksi pertumbuhan penghasilan karier di Indonesia."
         actions={
           <Button asChild variant="outline" size="sm" className="gap-1.5">
             <Link href="/jobs">
@@ -242,14 +245,15 @@ export default function SalaryCalculatorPage() {
               <Slider
                 value={[customGross]}
                 min={3}
-                max={45}
+                max={60}
                 step={0.5}
+                aria-label="Nominal gaji kotor bulanan"
                 onValueChange={(v) => setCustomGross(v[0])}
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>Rp3.000.000</span>
-                <span>Rp20.000.000</span>
-                <span>Rp45.000.000</span>
+                <span>Rp30.000.000</span>
+                <span>Rp60.000.000</span>
               </div>
             </div>
 
@@ -323,14 +327,21 @@ export default function SalaryCalculatorPage() {
           {/* Slip THP Utama */}
           <div className="rounded-2xl border border-primary/30 bg-card p-6 shadow-md space-y-6">
             <div className="rounded-xl bg-primary p-5 text-primary-foreground text-center space-y-1">
-              <span className="text-xs uppercase tracking-wider opacity-85">
-                Estimasi Take Home Pay (Bersih / Bulan)
+              <span className="text-xs font-medium uppercase tracking-wider">
+                Estimasi Ilustratif Take Home Pay (Bersih / Bulan)
               </span>
               <p className="font-[family-name:var(--font-heading)] text-3xl font-extrabold">
                 {formatRupiah(takeHomePay)}
               </p>
-              <span className="text-[11px] opacity-80 block pt-1">
+              <span className="text-[11px] font-medium block pt-1">
                 ~{Math.round((takeHomePay / customGross) * 100)}% dari Gaji Kotor ({formatRupiah(customGross)})
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground flex items-start gap-2">
+              <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <span>
+                <strong>Catatan Model Ilustratif:</strong> Perhitungan menggunakan pendekatan kurva disederhanakan untuk simulasi edukasi karier dan bukan kalkulasi pemotongan pajak resmi DJP.
               </span>
             </div>
 

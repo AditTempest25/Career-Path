@@ -3,7 +3,6 @@ import { z } from "zod";
 import { hashPassword } from "@/lib/server/auth-crypto";
 import {
   createPasswordResetOtp,
-  ensureDemoUser,
   verifyOtpAndResetPassword,
 } from "@/lib/server/db";
 import { checkRateLimit } from "@/lib/server/rate-limit";
@@ -40,12 +39,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: firstError }, { status: 400 });
     }
 
-    if (parsed.data.action === "request") {
-      const email = parsed.data.email.toLowerCase();
-      if (email === DEMO_EMAIL) {
-        await ensureDemoUser();
-      }
+    const email = parsed.data.email.toLowerCase();
+    if (email === DEMO_EMAIL) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Akun demo dilindungi dan tidak dapat diubah kata sandinya.",
+        },
+        { status: 403 }
+      );
+    }
 
+    // PF-001: Nonaktifkan pemulihan mandiri di server jika kanal pengiriman terverifikasi belum tersedia.
+    const verifiedChannelEnabled = process.env.PATHFORGE_VERIFIED_RECOVERY_ENABLED === "true";
+    if (!verifiedChannelEnabled) {
+      return NextResponse.json(
+        {
+          ok: false,
+          disabled: true,
+          error:
+            "Fitur pemulihan kata sandi mandiri dinonaktifkan karena kanal pengiriman email OTP terverifikasi belum tersedia.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (parsed.data.action === "request") {
       const otpRes = await createPasswordResetOtp(email);
       if (!otpRes.ok) {
         return NextResponse.json(
@@ -54,18 +73,19 @@ export async function POST(request: Request) {
         );
       }
 
+      // PF-001: Jangan pernah mengirimkan kode rahasia (OTP) kembali di body HTTP response.
       return NextResponse.json({
         ok: true,
-        devOtpCode: otpRes.code,
         expiresAt: otpRes.expiresAt,
-        message: "Kode OTP pemulihan kata sandi telah dibuat.",
+        message:
+          "Jika email terdaftar, kode OTP pemulihan telah dikirim melalui kanal email pemilik.",
       });
     }
 
     // action === "reset"
     const newHash = hashPassword(parsed.data.newPassword);
     const resetRes = await verifyOtpAndResetPassword(
-      parsed.data.email,
+      email,
       parsed.data.code,
       newHash
     );
@@ -79,7 +99,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      message: "Kata sandi berhasil direset! Silakan masuk dengan kata sandi baru.",
+      message: "Kata sandi berhasil direset dan seluruh sesi lama telah dicabut.",
     });
   } catch (error) {
     console.error("[POST /api/auth/forgot-password]", error);

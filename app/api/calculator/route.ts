@@ -49,7 +49,9 @@ export async function POST(request: Request) {
     const ptkpThreshold = PTKP_THRESHOLDS_JT[ptkp];
 
     const baseMid = (career.salary.min + career.salary.max) / 2;
-    const recommendedGross = Number((baseMid * levelMult * regionMult).toFixed(1));
+    // PF-017: Bulatkan rekomendasi ke kelipatan 0.5 juta agar selaras dengan step slider
+    const recommendedGross =
+      Math.round(baseMid * levelMult * regionMult * 2) / 2;
     const gross = customGrossMillions ?? recommendedGross;
 
     // 1. Potongan BPJS Kesehatan (1% ditanggung karyawan, plafon upah Rp12 juta)
@@ -59,10 +61,10 @@ export async function POST(request: Request) {
     const bpjsJp = Math.min(gross, 10) * 0.01;
     const totalBpjs = bpjsKesehatan + bpjsJht + bpjsJp;
 
-    // 3. Estimasi PPh 21 (TER bulanan)
+    // 3. Estimasi PPh 21 Ilustratif (5 pita sederhana untuk edukasi perencanaan karier)
     let taxRate = 0;
     if (gross > ptkpThreshold) {
-      if (gross <= 8) taxRate = 0.015;
+      if (gross <= 8.55) taxRate = 0.015;
       else if (gross <= 12) taxRate = 0.035;
       else if (gross <= 18) taxRate = 0.06;
       else if (gross <= 28) taxRate = 0.09;
@@ -77,6 +79,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       calculation: {
+        modelType: "illustrative-estimate",
+        disclaimer:
+          "Estimasi ilustratif untuk perencanaan karier menggunakan 5 pita tarif penyederhanaan, bukan perhitungan payroll resmi DJP.",
         careerId: career.id,
         careerTitle: career.title,
         recommendedGross,
@@ -100,23 +105,23 @@ export async function POST(request: Request) {
         trajectory: [
           {
             year: "Tahun 1 (Junior)",
-            gross: Number((baseMid * 0.85 * regionMult).toFixed(1)),
+            gross: Math.round(baseMid * 0.85 * regionMult * 2) / 2,
           },
           {
             year: "Tahun 2",
-            gross: Number((baseMid * 1.1 * regionMult).toFixed(1)),
+            gross: Math.round(baseMid * 1.1 * regionMult * 2) / 2,
           },
           {
             year: "Tahun 3 (Mid)",
-            gross: Number((baseMid * 1.45 * regionMult).toFixed(1)),
+            gross: Math.round(baseMid * 1.45 * regionMult * 2) / 2,
           },
           {
             year: "Tahun 4",
-            gross: Number((baseMid * 1.85 * regionMult).toFixed(1)),
+            gross: Math.round(baseMid * 1.85 * regionMult * 2) / 2,
           },
           {
             year: "Tahun 5 (Senior)",
-            gross: Number((baseMid * 2.35 * regionMult).toFixed(1)),
+            gross: Math.round(baseMid * 2.35 * regionMult * 2) / 2,
           },
         ],
       },

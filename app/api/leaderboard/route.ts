@@ -22,6 +22,7 @@ export interface LeaderboardEntry {
   submissionsCount: number;
   isCurrentUser: boolean;
   isServerUser: boolean;
+  publicPortfolioEnabled?: boolean;
 }
 
 const COMMUNITY_PEERS: Omit<LeaderboardEntry, "isCurrentUser" | "isServerUser">[] = [
@@ -126,32 +127,46 @@ export async function GET(request: Request) {
     const session = await getAuthenticatedSession();
     const serverUsers = await listAllUsersWithData();
 
-    const serverEntries: LeaderboardEntry[] = serverUsers.map(({ user, data }) => {
-      const cId = (data.activeCareer || "web-developer") as CareerId;
-      const career = getCareer(cId);
-      const xp = getTotalXp(data);
-      const level = getLevel(xp).level;
-      const readiness = career ? getReadiness(cId, data) : 0;
-      const streak = getStreak(data);
-
-      return {
-        id: user.id,
-        name: user.name,
-        slug: toProfileSlug(user.name),
-        careerId: cId,
-        careerTitle: career?.title || "Web Developer",
-        headline: data.profile.headline || `Pembelajar ${career?.title || "Teknologi"}`,
-        location: data.profile.location || "Indonesia",
-        xp,
-        level,
-        readiness,
-        streak,
-        completedModulesCount: data.completedModules.length,
-        submissionsCount: Object.keys(data.submissions).length,
-        isCurrentUser: session?.user.id === user.id,
-        isServerUser: true,
-      };
+    // PF-002: Hanya proyeksikan akun pengguna ke leaderboard publik jika:
+    // 1) Itu adalah akun pengguna yang sedang login sendiri (isCurrentUser), ATAU
+    // 2) Pengguna tersebut telah mengaktifkan persetujuan visibilitas (showOnLeaderboard === true)
+    const visibleServerUsers = serverUsers.filter(({ user, data }) => {
+      const isCurrentUser = session?.user.id === user.id;
+      const optedIn = Boolean(data.settings?.showOnLeaderboard);
+      return isCurrentUser || optedIn;
     });
+
+    const serverEntries: LeaderboardEntry[] = visibleServerUsers.map(
+      ({ user, data }) => {
+        const cId = (data.activeCareer || "web-developer") as CareerId;
+        const career = getCareer(cId);
+        const xp = getTotalXp(data);
+        const level = getLevel(xp).level;
+        const readiness = career ? getReadiness(cId, data) : 0;
+        const streak = getStreak(data);
+
+        return {
+          id: user.id,
+          name: user.name,
+          slug: toProfileSlug(user.name),
+          careerId: cId,
+          careerTitle: career?.title || "Web Developer",
+          headline:
+            data.profile.headline ||
+            `Pembelajar ${career?.title || "PathForge"}`,
+          location: data.profile.location || "Indonesia",
+          xp,
+          level,
+          readiness,
+          streak,
+          completedModulesCount: data.completedModules.length,
+          submissionsCount: Object.keys(data.submissions).length,
+          isCurrentUser: session?.user.id === user.id,
+          isServerUser: true,
+          publicPortfolioEnabled: Boolean(data.settings?.publicPortfolio),
+        };
+      }
+    );
 
     const existingSlugs = new Set(serverEntries.map((e) => e.slug));
     const peerEntries: LeaderboardEntry[] = COMMUNITY_PEERS.filter(
@@ -160,6 +175,7 @@ export async function GET(request: Request) {
       ...p,
       isCurrentUser: false,
       isServerUser: false,
+      publicPortfolioEnabled: false,
     }));
 
     const combined = [...serverEntries, ...peerEntries]

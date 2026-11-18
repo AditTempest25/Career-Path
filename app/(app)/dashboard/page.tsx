@@ -139,28 +139,28 @@ export default function DashboardPage() {
       />
 
       {/* Banner Tantangan Kuis Kilat Harian & Streak */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-orange-500/30 bg-gradient-to-r from-orange-500/10 via-orange-500/5 to-transparent p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-orange-600/30 bg-gradient-to-r from-orange-500/10 via-orange-500/5 to-transparent p-5">
         <div className="flex items-center gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-md shadow-orange-500/20">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-700 text-white shadow-md shadow-orange-700/20">
             <Flame className="h-6 w-6 fill-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-[family-name:var(--font-heading)] font-bold text-sm text-foreground">
                 Tantangan Kuis Kilat Hari Ini
               </h3>
               {isTodayQuizDone ? (
                 <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px]">
-                  ✓ Selesai (+25 XP)
+                  ✓ Selesai Hari Ini
                 </Badge>
               ) : (
-                <Badge variant="default" className="bg-orange-500 text-white text-[10px]">
-                  +25 XP Belum Diambil
+                <Badge variant="default" className="bg-orange-700 text-white text-[10px]">
+                  Hingga +25 XP
                 </Badge>
               )}
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Uji 3 soal mikro harian seputar {career?.title || "teknologi"} untuk menjaga streak {streak} harimu!
+              Uji 3 soal mikro harian seputar {career?.title || "karier"} untuk menjaga streak {streak} harimu!
             </p>
           </div>
         </div>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
         <Button
           size="sm"
           onClick={() => setChallengeOpen(true)}
-          className="shrink-0 gap-1.5 bg-orange-500 hover:bg-orange-600 text-white"
+          className="shrink-0 gap-1.5 bg-orange-700 hover:bg-orange-800 text-white"
         >
           <Zap className="h-4 w-4" />
           {isTodayQuizDone ? "Latihan Lagi" : "Mulai Kuis Kilat"}

@@ -225,7 +225,7 @@ export default function LeaderboardPage() {
                           <span className="text-[10px] text-muted-foreground block">
                             Streak
                           </span>
-                          <span className="font-bold text-xs text-orange-500">
+                          <span className="font-bold text-xs text-orange-700 dark:text-orange-400">
                             🔥 {item.streak}h
                           </span>
                         </div>
@@ -267,11 +267,11 @@ export default function LeaderboardPage() {
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                           rank === 1
-                            ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400"
+                            ? "bg-yellow-500/15 text-yellow-800 dark:text-yellow-300"
                             : rank === 2
-                            ? "bg-slate-400/20 text-slate-600 dark:text-slate-300"
+                            ? "bg-slate-500/15 text-slate-800 dark:text-slate-200"
                             : rank === 3
-                            ? "bg-amber-600/20 text-amber-700 dark:text-amber-400"
+                            ? "bg-amber-500/15 text-amber-900 dark:text-amber-300"
                             : "bg-muted text-muted-foreground"
                         }`}
                       >
@@ -333,7 +333,7 @@ export default function LeaderboardPage() {
                         <span className="text-[10px] text-muted-foreground block">
                           Streak
                         </span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-orange-500">
+                        <span className="inline-flex items-center gap-1 font-semibold text-orange-700 dark:text-orange-400">
                           <Flame className="h-3.5 w-3.5" /> {entry.streak}h
                         </span>
                       </div>

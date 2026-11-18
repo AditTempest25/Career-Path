@@ -9,6 +9,7 @@ import {
 import { getAuthenticatedSession } from "@/lib/server/session";
 import { mutateUserData } from "@/lib/server/db";
 import { careers, getCareer } from "@/lib/data/careers";
+import { hasValidSavedAssessment } from "@/lib/data/assessment";
 import {
   getReadiness,
   getRoadmapProgress,
@@ -91,15 +92,25 @@ export async function PATCH(request: Request) {
       return errorResponse("Jalur karier tidak ditemukan.", 404);
     }
 
+    const isOnboarding = Boolean(parsed.data.completeOnboarding);
+    // PF-006: Pastikan server baru menandai onboarding selesai setelah 8 jawaban asesmen valid tersimpan
+    if (isOnboarding && !hasValidSavedAssessment(auth.session.data.assessment)) {
+      return errorResponse(
+        "Asesmen Career GPS belum lengkap. Harap selesaikan seluruh 8 pertanyaan asesmen terlebih dahulu sebelum menyelesaikan onboarding.",
+        400
+      );
+    }
+
     const { data } = await mutateUserData(auth.session.rawUser.id, (current) => {
-      const isOnboarding = Boolean(parsed.data.completeOnboarding);
-      const label = isOnboarding
+      const canCompleteOnboarding =
+        isOnboarding && hasValidSavedAssessment(current.assessment);
+      const label = canCompleteOnboarding
         ? `Memilih jalur ${career.title}`
         : `Beralih ke jalur ${career.title}`;
 
       const nextData = {
         ...current,
-        onboarded: isOnboarding ? true : current.onboarded,
+        onboarded: canCompleteOnboarding ? true : current.onboarded,
         activeCareer: career.id as CareerId,
         activity: [makeActivity("career", label, 0), ...current.activity],
       };

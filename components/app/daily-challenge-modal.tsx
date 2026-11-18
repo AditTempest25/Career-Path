@@ -2,24 +2,20 @@
 
 import { useState } from "react";
 import {
-  AlertCircle,
   ArrowRight,
-  Award,
   CheckCircle2,
   Flame,
-  HelpCircle,
   Lightbulb,
+  Loader2,
   RotateCcw,
-  Sparkles,
   Trophy,
   X,
-  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useApp } from "@/lib/store";
-import { getDailyQuizForUser, type FlashQuizQuestion } from "@/lib/data/daily-quiz";
+import { getDailyQuizForUser } from "@/lib/data/daily-quiz";
 import { cn } from "@/lib/utils";
 
 export function DailyChallengeModal({
@@ -36,13 +32,17 @@ export function DailyChallengeModal({
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [answersList, setAnswersList] = useState<
+    { questionId: string; selectedIndex: number }[]
+  >([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [xpAwarded, setXpAwarded] = useState<number>(0);
+  const [wasAlreadyCompleted, setWasAlreadyCompleted] = useState<boolean>(false);
   const [isFinished, setIsFinished] = useState(false);
 
   if (!isOpen) return null;
 
   const currentQ = questions[currentIndex];
-  const isTodayCompleted =
-    data.dailyChallenge?.lastCompletedDate === new Date().toISOString().split("T")[0];
 
   const handleSelect = (idx: number) => {
     if (isAnswered) return;
@@ -54,16 +54,46 @@ export function DailyChallengeModal({
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (selectedOption === null) return;
+    const nextAnswers = [
+      ...answersList,
+      { questionId: currentQ.id, selectedIndex: selectedOption },
+    ];
+    setAnswersList(nextAnswers);
+
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((i) => i + 1);
       setSelectedOption(null);
       setIsAnswered(false);
     } else {
+      setSubmitting(true);
+      const res = await completeDailyChallenge(nextAnswers);
+      setSubmitting(false);
+
+      if (!res.ok) {
+        toast.error(res.error || "Gagal menyimpan hasil kuis harian ke server.");
+        return;
+      }
+
+      const finalCorrect = res.correctCount ?? correctCount;
+      setXpAwarded(res.xpAwarded);
+      setWasAlreadyCompleted(Boolean(res.alreadyDoneToday));
+      setCorrectCount(finalCorrect);
       setIsFinished(true);
-      if (!isTodayCompleted) {
-        completeDailyChallenge(25);
-        toast.success("Tantangan harian selesai! +25 XP ditambahkan & Streak dipertahankan 🔥");
+
+      if (res.alreadyDoneToday) {
+        toast.info(
+          `Latihan ulang selesai (${finalCorrect}/${questions.length} benar). Reward harian sudah diklaim hari ini.`
+        );
+      } else if (res.xpAwarded > 0) {
+        toast.success(
+          `Tantangan harian selesai! +${res.xpAwarded} XP ditambahkan & Streak dipertahankan 🔥`
+        );
+      } else {
+        toast.info(
+          `Tantangan harian selesai (${finalCorrect}/${questions.length} benar). Streak harian tercatat!`
+        );
       }
     }
   };
@@ -73,21 +103,34 @@ export function DailyChallengeModal({
     setSelectedOption(null);
     setIsAnswered(false);
     setCorrectCount(0);
+    setAnswersList([]);
+    setXpAwarded(0);
+    setWasAlreadyCompleted(false);
     setIsFinished(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="daily-quiz-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
       <div className="relative w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-2xl">
         {/* Header Dialog */}
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-2">
-            <Flame className="h-5 w-5 text-orange-500 fill-orange-500" />
-            <h3 className="font-[family-name:var(--font-heading)] text-lg font-bold">
+            <Flame className="h-5 w-5 text-orange-700 dark:text-orange-400 fill-current" />
+            <h3
+              id="daily-quiz-title"
+              className="font-[family-name:var(--font-heading)] text-lg font-bold"
+            >
               Tantangan Kuis Kilat Harian
             </h3>
           </div>
           <button
+            type="button"
+            aria-label="Tutup tantangan kuis harian"
             onClick={onClose}
             className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
@@ -104,13 +147,15 @@ export function DailyChallengeModal({
 
             <div>
               <Badge variant="outline" className="mb-2 bg-success/10 text-success border-success/30">
-                Tantangan Hari Ini Selesai
+                {wasAlreadyCompleted ? "Latihan Ulang Selesai" : "Tantangan Hari Ini Selesai"}
               </Badge>
               <h2 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-foreground">
                 Skor: {correctCount} / {questions.length} Benar!
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                {correctCount === questions.length
+                {wasAlreadyCompleted
+                  ? "Reward XP dan statistik soal harian hanya dihitung pada pengerjaan pertama setiap hari."
+                  : correctCount === questions.length
                   ? "Sempurna! Pemahaman fundamentalmu sangat tajam."
                   : "Kerja bagus! Konsistensi belajar harian adalah kunci penguasaan karier."}
               </p>
@@ -119,13 +164,15 @@ export function DailyChallengeModal({
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 max-w-sm mx-auto text-xs flex items-center justify-around">
               <div>
                 <span className="text-muted-foreground block text-[10px]">Reward XP</span>
-                <span className="font-bold text-primary text-base">+25 XP</span>
+                <span className="font-bold text-primary text-base">
+                  +{xpAwarded} XP
+                </span>
               </div>
               <div className="h-8 w-px bg-border" />
               <div>
                 <span className="text-muted-foreground block text-[10px]">Status Streak</span>
-                <span className="font-bold text-orange-500 text-base flex items-center gap-1">
-                  <Flame className="h-4 w-4 fill-orange-500" /> Aktif
+                <span className="font-bold text-orange-700 dark:text-orange-400 text-base flex items-center gap-1">
+                  <Flame className="h-4 w-4 fill-current" /> Aktif
                 </span>
               </div>
             </div>
@@ -218,9 +265,10 @@ export function DailyChallengeModal({
               <Button
                 size="sm"
                 onClick={handleNext}
-                disabled={!isAnswered}
+                disabled={!isAnswered || submitting}
                 className="gap-1.5 text-xs"
               >
+                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {currentIndex === questions.length - 1 ? "Selesaikan Kuis" : "Soal Berikutnya"}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>

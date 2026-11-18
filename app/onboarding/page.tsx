@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Compass, Sparkles, Trophy } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, Compass, Loader2, Sparkles, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,16 @@ export default function OnboardingPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [selected, setSelected] = useState<CareerId | null>(null);
+  const [savingAssessment, setSavingAssessment] = useState(false);
+  const [finishingOnboarding, setFinishingOnboarding] = useState(false);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advancingQuestionRef = useRef<string | null>(null);
+  const stepEnteredAtRef = useRef<number>(0);
+
+  useEffect(() => {
+    stepEnteredAtRef.current = Date.now();
+    advancingQuestionRef.current = null;
+  }, [step]);
 
   useEffect(() => {
     if (ready && !user) router.replace("/login");
@@ -47,8 +57,13 @@ export default function OnboardingPage() {
       setEducation(data.profile.education);
       setHours(data.profile.weeklyHours);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [ready, data.profile.status, data.profile.education, data.profile.weeklyHours]);
+
+  useEffect(() => {
+    return () => {
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    };
+  }, []);
 
   const totalSteps = assessmentQuestions.length + 2; // intro + pertanyaan + hasil
   const questionIndex = step - 1;
@@ -59,27 +74,82 @@ export default function OnboardingPage() {
 
   if (!ready || !user) return <FullPageLoader />;
 
-  const next = () => {
+  const clearPendingAdvance = () => {
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+    advancingQuestionRef.current = null;
+  };
+
+  const next = async () => {
+    clearPendingAdvance();
     if (step === assessmentQuestions.length) {
-      const res = saveAssessment(answers, { status, education, weeklyHours: hours });
-      setResult(res);
-      setSelected(rankCareers(res.scores)[0][0]);
+      const missingIndex = assessmentQuestions.findIndex((q) => !answers[q.id]);
+      if (missingIndex !== -1) {
+        toast.error(`Harap jawab Pertanyaan ${missingIndex + 1} terlebih dahulu.`);
+        setStep(missingIndex + 1);
+        return;
+      }
+      setSavingAssessment(true);
+      const res = await saveAssessment(answers, { status, education, weeklyHours: hours });
+      setSavingAssessment(false);
+
+      // PF-006 & PF-013: Jangan lanjut ke layar hasil jika server menolak atau gagal menyimpan asesmen
+      if (!res.ok || !res.result) {
+        toast.error(res.error || "Gagal menyimpan hasil asesmen ke server. Silakan coba lagi.");
+        return;
+      }
+      setResult(res.result);
+      setSelected(rankCareers(res.result.scores)[0][0]);
     }
     setStep((s) => Math.min(totalSteps - 1, s + 1));
   };
-  const back = () => setStep((s) => Math.max(0, s - 1));
 
-  const choose = (optionId: string) => {
-    setAnswers((a) => ({ ...a, [question.id]: optionId }));
-    setTimeout(() => {
-      if (step === assessmentQuestions.length) return;
-      setStep((s) => s + 1);
+  const back = () => {
+    clearPendingAdvance();
+    setStep((s) => Math.max(0, s - 1));
+  };
+
+  const choose = (optionId: string, e?: React.MouseEvent<HTMLButtonElement>) => {
+    if (!question) return;
+    // PF-006: Abaikan klik ke-2 dari double-click, klik berulang pada soal yang sama, atau klik saat soal baru saja berganti
+    if (e && e.detail > 1) return;
+    if (advancingQuestionRef.current === question.id) return;
+    if (step > 1 && Date.now() - stepEnteredAtRef.current < 450) return;
+
+    const targetStep = step;
+    const targetQuestionId = question.id;
+    advancingQuestionRef.current = targetQuestionId;
+    setAnswers((a) => ({ ...a, [targetQuestionId]: optionId }));
+
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+    }
+    advanceTimerRef.current = setTimeout(() => {
+      advanceTimerRef.current = null;
+      if (targetStep < assessmentQuestions.length) {
+        setStep((currentStep) =>
+          currentStep === targetStep ? Math.min(assessmentQuestions.length, targetStep + 1) : currentStep
+        );
+      } else {
+        advancingQuestionRef.current = null;
+      }
     }, 220);
   };
 
-  const finish = () => {
-    if (!selected) return;
-    completeOnboarding(selected);
+  const finish = async () => {
+    if (!selected || finishingOnboarding) return;
+    setFinishingOnboarding(true);
+    const res = await completeOnboarding(selected);
+    setFinishingOnboarding(false);
+
+    // PF-006 & PF-013: UI baru pindah ke dashboard setelah server mengonfirmasi penyelesaian onboarding
+    if (!res.ok) {
+      toast.error(res.error || "Gagal menyelesaikan onboarding di server. Silakan coba lagi.");
+      return;
+    }
+
     toast.success(`Jalur ${getCareer(selected)?.title} dipilih. Ayo mulai!`);
     router.push("/dashboard");
   };
@@ -99,7 +169,7 @@ export default function OnboardingPage() {
             <span className="text-sm text-muted-foreground">Halo, {user.name.split(" ")[0]} 👋</span>
           )}
         </div>
-        <Progress value={progress} className="h-1 rounded-none" />
+        <Progress value={progress} aria-label="Progres asesmen Career GPS" className="h-1 rounded-none" />
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-10 md:py-16">
@@ -154,10 +224,20 @@ export default function OnboardingPage() {
 
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-base">Waktu belajar per minggu</Label>
+                  <Label id="weekly-hours-label" className="text-base">
+                    Waktu belajar per minggu
+                  </Label>
                   <span className="font-semibold text-primary">{hours} jam</span>
                 </div>
-                <Slider value={[hours]} min={2} max={40} step={1} onValueChange={(v) => setHours(v[0])} className="mt-4" />
+                <Slider
+                  value={[hours]}
+                  min={2}
+                  max={40}
+                  step={1}
+                  aria-label="Waktu belajar per minggu"
+                  onValueChange={(v) => setHours(v[0])}
+                  className="mt-4"
+                />
                 <p className="mt-2 text-sm text-muted-foreground">
                   Kami akan menyesuaikan estimasi waktu roadmap dengan ketersediaanmu.
                 </p>
@@ -187,9 +267,9 @@ export default function OnboardingPage() {
                 const active = answers[question.id] === o.id;
                 return (
                   <button
-                    key={o.id}
+                    key={`${question.id}-${o.id}`}
                     type="button"
-                    onClick={() => choose(o.id)}
+                    onClick={(e) => choose(o.id, e)}
                     className={cn(
                       "flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-sm",
                       active ? "border-primary ring-2 ring-primary/20" : "border-border"
@@ -213,7 +293,8 @@ export default function OnboardingPage() {
               <Button variant="ghost" onClick={back} className="gap-2">
                 <ArrowLeft className="h-4 w-4" /> Kembali
               </Button>
-              <Button onClick={next} disabled={!answers[question.id]} className="gap-2">
+              <Button onClick={next} disabled={!answers[question.id] || savingAssessment} className="gap-2">
+                {savingAssessment && <Loader2 className="h-4 w-4 animate-spin" />}
                 {step === assessmentQuestions.length ? "Lihat Hasil" : "Lanjut"}
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -292,7 +373,8 @@ export default function OnboardingPage() {
               <Button variant="ghost" onClick={() => { setStep(1); setResult(null); }} className="gap-2">
                 <ArrowLeft className="h-4 w-4" /> Ulangi asesmen
               </Button>
-              <Button size="lg" onClick={finish} disabled={!selected} className="gap-2">
+              <Button size="lg" onClick={finish} disabled={!selected || finishingOnboarding} className="gap-2">
+                {finishingOnboarding && <Loader2 className="h-4 w-4 animate-spin" />}
                 Mulai sebagai {getCareer(selected)?.title}
                 <ArrowRight className="h-4 w-4" />
               </Button>

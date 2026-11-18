@@ -12,6 +12,7 @@ import {
   getSkillLevels,
   getStreak,
   getTotalXp,
+  isCertificateEligible,
 } from "@/lib/progress";
 
 export async function GET() {
@@ -41,9 +42,8 @@ export async function GET() {
       progressText: b.progressText ? b.progressText(data) : undefined,
     }));
 
-    const certificateEligible =
-      Boolean(roadmapProgress && roadmapProgress.percent === 100) ||
-      readiness >= 70;
+    // PF-009: Gunakan fungsi kelayakan tunggal (100% modul roadmap selesai)
+    const certificateEligible = isCertificateEligible(career, data);
 
     return NextResponse.json({
       ok: true,

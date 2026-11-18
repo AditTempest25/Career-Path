@@ -27,13 +27,14 @@ import { CertificateModal } from "@/components/app/certificate-modal";
 import { useApp } from "@/lib/store";
 import { getSimulation } from "@/lib/data/simulations";
 import { getCareer } from "@/lib/data/careers";
-import { formatDate, initials } from "@/lib/progress";
+import { formatDate, initials, isCertificateEligible } from "@/lib/progress";
 import { cn } from "@/lib/utils";
 
 export default function PortfolioPage() {
-  const { user, data, toggleFeatured } = useApp();
+  const { user, data, toggleFeatured, updateSettings } = useApp();
   const career = getCareer(data.activeCareer);
   const [certOpen, setCertOpen] = useState(false);
+  const certEligible = career ? isCertificateEligible(career, data) : false;
 
   // Ambil semua submission
   const submissions = Object.values(data.submissions);
@@ -67,7 +68,25 @@ export default function PortfolioPage() {
               onClick={() => setCertOpen(true)}
               className="gap-1.5 text-primary border-primary/30 hover:bg-primary/5"
             >
-              <Award className="h-4 w-4" /> Sertifikat Kelulusan
+              <Award className="h-4 w-4" />
+              {certEligible ? "Sertifikat Kelulusan" : "Syarat Sertifikat (Terkunci)"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const nextVal = !data.settings.publicPortfolio;
+                updateSettings({ publicPortfolio: nextVal });
+                toast.success(
+                  nextVal
+                    ? "Portofolio publik diaktifkan (dapat diakses siapa saja)."
+                    : "Portofolio diatur ke Privat (hanya kamu yang dapat melihat pratinjau)."
+                );
+              }}
+              className="gap-1.5"
+            >
+              <Globe className="h-4 w-4 text-primary" />
+              {data.settings.publicPortfolio ? "Status: Publik" : "Status: Privat"}
             </Button>
             <Button variant="outline" size="sm" asChild className="gap-1.5">
               <Link href={publicPath} target="_blank">

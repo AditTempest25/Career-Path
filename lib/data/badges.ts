@@ -14,6 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { UserData } from "@/lib/types";
+import { getStreak, getTotalXp } from "@/lib/progress";
 
 export interface AchievementBadge {
   id: string;
@@ -84,11 +85,8 @@ export const badges: AchievementBadge[] = [
     description: "Pertahankan streak belajar minimal 3 hari beruntun.",
     icon: Flame,
     category: "konsistensi",
-    isUnlocked: (data) => {
-      // Setidaknya ada 3 log tanggal berbeda
-      const dates = new Set(data.activity.map((a) => a.date.split("T")[0]));
-      return dates.size >= 3;
-    },
+    isUnlocked: (data) => getStreak(data) >= 3,
+    progressText: (data) => `${Math.min(3, getStreak(data))}/3 hari`,
   },
   {
     id: "xp-master",
@@ -96,14 +94,8 @@ export const badges: AchievementBadge[] = [
     description: "Capai total 500 XP atau setara Level 2.",
     icon: Zap,
     category: "konsistensi",
-    isUnlocked: (data) => {
-      let xp = data.assessment ? 50 : 0;
-      xp += data.completedModules.length * 30;
-      for (const s of Object.values(data.submissions)) {
-        xp += Math.round((s.score / 100) * 200);
-      }
-      return xp >= 500;
-    },
+    isUnlocked: (data) => getTotalXp(data) >= 500,
+    progressText: (data) => `${Math.min(500, getTotalXp(data))}/500 XP`,
   },
 ];
 

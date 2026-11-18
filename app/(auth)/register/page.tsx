@@ -105,7 +105,15 @@ export default function RegisterPage() {
           <div className="flex items-start gap-2">
             <Checkbox id="agree" checked={agree} onCheckedChange={(v) => setAgree(v === true)} className="mt-0.5" />
             <Label htmlFor="agree" className="text-sm font-normal leading-snug text-muted-foreground">
-              Saya menyetujui Syarat & Ketentuan serta Kebijakan Privasi PathForge.
+              Saya menyetujui{" "}
+              <Link href="/terms" className="font-medium text-primary underline hover:text-primary/80">
+                Syarat &amp; Ketentuan
+              </Link>{" "}
+              serta{" "}
+              <Link href="/privacy" className="font-medium text-primary underline hover:text-primary/80">
+                Kebijakan Privasi
+              </Link>{" "}
+              PathForge.
             </Label>
           </div>
           <FieldError message={errors.agree} />

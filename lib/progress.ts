@@ -15,7 +15,29 @@ export function getTotalXp(data: UserData) {
     const sim = getSimulation(sub.simulationId);
     if (sim) xp += Math.round((sim.xp * sub.score) / 100);
   }
+  for (const act of data.activity) {
+    if (
+      (act.type === "quiz" || act.type === "interview" || act.type === "job") &&
+      typeof act.xp === "number" &&
+      act.xp > 0
+    ) {
+      xp += act.xp;
+    }
+  }
   return xp;
+}
+
+/**
+ * Syarat tunggal kelayakan Sertifikat Kelulusan:
+ * Seluruh modul roadmap pada jalur karier terkait harus tuntas (100%).
+ */
+export function isCertificateEligible(
+  career: Career | null | undefined,
+  data: UserData
+): boolean {
+  if (!career) return false;
+  const progress = getRoadmapProgress(career, data);
+  return progress.total > 0 && progress.completed === progress.total;
 }
 
 export function getLevel(xp: number) {

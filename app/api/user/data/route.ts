@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { saveUserData } from "@/lib/server/db";
 import { getAuthenticatedSession } from "@/lib/server/session";
-import type { UserData } from "@/lib/types";
+import { normalizeUserData, userDataValidationSchema } from "@/lib/seed-data";
+import { hasValidSavedAssessment } from "@/lib/data/assessment";
+import type { AssessmentResult, UserData } from "@/lib/types";
 
 export async function GET() {
   try {
@@ -36,15 +38,46 @@ export async function PUT(request: Request) {
       );
     }
 
-    const body = (await request.json()) as { data?: UserData };
-    if (!body?.data) {
+    const body = (await request.json().catch(() => null)) as { data?: unknown } | null;
+    if (!body?.data || typeof body.data !== "object") {
       return NextResponse.json(
         { ok: false, error: "Payload data tidak valid." },
         { status: 400 }
       );
     }
 
-    const saved = await saveUserData(session.rawUser.id, body.data);
+    // PF-003: Validasi skema snapshot UserData agar objek kosong/rusak tidak menimpa progres
+    const parsed = userDataValidationSchema.safeParse(body.data);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Struktur data progres tidak valid: " +
+            (parsed.error.errors[0]?.message || "format tidak sesuai"),
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      parsed.data.onboarded &&
+      !hasValidSavedAssessment(parsed.data.assessment as AssessmentResult | null | undefined)
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Onboarding hanya dapat diselesaikan setelah seluruh 8 pertanyaan asesmen Career GPS dijawab dengan valid.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const saved = await saveUserData(
+      session.rawUser.id,
+      normalizeUserData(parsed.data as unknown as Partial<UserData>)
+    );
     return NextResponse.json({
       ok: true,
       data: saved,

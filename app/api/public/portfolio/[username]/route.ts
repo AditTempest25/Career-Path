@@ -14,7 +14,7 @@ export async function GET(
     const { username } = await context.params;
     const slug = decodeURIComponent(username).trim().toLowerCase();
 
-    // Pastikan akun demo ter-seed jika mengakses slug demo
+    // Pastikan akun demo utama ter-seed jika mengakses slug demo
     if (slug === "raka-pratama" || slug === "rina-pratama" || slug === "demo") {
       await ensureDemoUser();
     }
@@ -22,7 +22,6 @@ export async function GET(
     const session = await getAuthenticatedSession();
     const matches = await findUsersByProfileSlug(slug);
 
-    // Jika slug adalah "demo", izinkan fallback ke demo-user
     let target = matches[0] ?? null;
     if (!target && slug === "demo") {
       const demo = await ensureDemoUser();
@@ -36,12 +35,31 @@ export async function GET(
 
     if (!target) {
       return NextResponse.json(
-        { ok: false, error: "Portofolio pengguna tidak ditemukan di server." },
+        {
+          ok: false,
+          code: "NOT_FOUND",
+          error: "Portofolio pengguna tidak ditemukan di server.",
+        },
         { status: 404 }
       );
     }
 
     const isOwner = session?.user.id === target.user.id;
+    const isPublic = Boolean(target.data.settings?.publicPortfolio);
+
+    // PF-002: Tegakkan pilihan visibilitas privat di sisi server sebelum membentuk proyeksi profil
+    if (!isOwner && !isPublic) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "PRIVATE",
+          error:
+            "Portofolio ini bersifat privat dan belum dipublikasikan oleh pemilik akun.",
+        },
+        { status: 403 }
+      );
+    }
+
     const career = getCareer(target.data.activeCareer || "web-developer");
     const readiness = career ? getReadiness(career.id, target.data) : 0;
     const xp = getTotalXp(target.data);
@@ -66,6 +84,9 @@ export async function GET(
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
+    // PF-010: Label verifikasi hanya aktif untuk profil sah yang telah menyelesaikan simulasi
+    const verified = Boolean(target.data.onboarded && featuredProjects.length > 0);
+
     return NextResponse.json({
       ok: true,
       isOwner,
@@ -73,7 +94,9 @@ export async function GET(
         name: target.user.name,
         slug: toProfileSlug(target.user.name),
         createdAt: target.user.createdAt,
-        publicPortfolioEnabled: Boolean(target.data.settings?.publicPortfolio),
+        publicPortfolioEnabled: isPublic,
+        isOwnerPreview: isOwner && !isPublic,
+        verified,
         activeCareerId: career?.id ?? "web-developer",
         careerTitle: career?.title ?? "Web Developer",
         skills: career?.skills ?? [],

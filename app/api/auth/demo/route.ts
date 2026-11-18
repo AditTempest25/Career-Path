@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { ensureDemoUser, toPublicUser } from "@/lib/server/db";
+import { createIsolatedDemoUser, toPublicUser } from "@/lib/server/db";
 import { issueSessionCookie } from "@/lib/server/session";
 
 export async function POST() {
   try {
-    const { user, data } = await ensureDemoUser();
+    // PF-012: Setiap pengunjung demo mendapatkan akun & state demo terisolasi
+    const { user, data } = await createIsolatedDemoUser();
     await issueSessionCookie(user.id);
 
     return NextResponse.json({

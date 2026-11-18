@@ -5,15 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Bell,
-  Check,
   DatabaseBackup,
   Download,
+  Globe,
   KeyRound,
   Loader2,
   Lock,
   RotateCcw,
   Save,
-  Shield,
   Trash2,
   Upload,
   User,
@@ -26,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/app/shared";
 import { useApp } from "@/lib/store";
-import type { Profile, UserData, UserStatus } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -55,6 +54,8 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
+  const [backupJsonText, setBackupJsonText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleExportBackup = async () => {
@@ -95,33 +96,65 @@ export default function SettingsPage() {
     }
   };
 
+  const restoreFromJsonString = async (text: string): Promise<boolean> => {
+    setRestoringBackup(true);
+    try {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        toast.error("File atau teks JSON tidak valid atau rusak. Data sebelumnya tetap utuh.");
+        return false;
+      }
+
+      // PF-003 & PF-013: Validasi format/versi backup dan tunggu konfirmasi simpan server sebelum menampilkan sukses
+      const res = await importBackupData(parsed);
+      if (res.ok) {
+        const rawObj = parsed as {
+          data?: { profile?: Partial<Profile> };
+          backup?: { data?: { profile?: Partial<Profile> } };
+          profile?: Partial<Profile>;
+        };
+        const restoredProfile =
+          rawObj?.backup?.data?.profile ?? rawObj?.data?.profile ?? rawObj?.profile;
+        if (restoredProfile) {
+          setProfileForm((prev) => ({ ...prev, ...restoredProfile }));
+        }
+        toast.success("Progres berhasil dipulihkan dan disimpan ke server!");
+        return true;
+      } else {
+        toast.error(res.error || "Format backup tidak valid. Data sebelumnya tetap utuh.");
+        return false;
+      }
+    } catch {
+      toast.error("Gagal memproses data backup. Data sebelumnya tetap utuh.");
+      return false;
+    } finally {
+      setRestoringBackup(false);
+    }
+  };
+
   const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    setRestoringBackup(true);
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text) as {
-        data?: Partial<UserData>;
-        backup?: { data?: Partial<UserData> };
-      } & Partial<UserData>;
-      const rawData = parsed?.backup?.data ?? parsed?.data ?? parsed;
-
-      const res = await importBackupData(rawData);
-      if (res.ok) {
-        if (rawData.profile) {
-          setProfileForm((prev) => ({ ...prev, ...rawData.profile }));
-        }
-        toast.success("Progres berhasil dipulihkan dari file backup!");
-      } else {
-        toast.error(res.error || "Gagal memulihkan data backup.");
-      }
-    } catch {
-      toast.error("File JSON tidak valid atau rusak.");
+      setBackupJsonText(text);
+      const ok = await restoreFromJsonString(text);
+      if (ok) setBackupJsonText("");
     } finally {
-      setRestoringBackup(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRestoreFromText = async () => {
+    if (!backupJsonText.trim()) {
+      toast.error("Tempelkan isi JSON backup terlebih dahulu.");
+      return;
+    }
+    const ok = await restoreFromJsonString(backupJsonText);
+    if (ok) {
+      setBackupJsonText("");
     }
   };
 
@@ -178,8 +211,17 @@ export default function SettingsPage() {
 
   const handleDelete = async () => {
     if (confirm("PERINGATAN: Akun ini beserta seluruh datanya akan dihapus permanen. Lanjutkan?")) {
-      await deleteAccount();
-      toast.info("Akun berhasil dihapus dari server.");
+      setDeletingAccount(true);
+      const res = await deleteAccount();
+      setDeletingAccount(false);
+
+      // PF-004 & PF-013: Jangan klaim berhasil atau keluar jika penghapusan di server gagal
+      if (!res.ok) {
+        toast.error(res.error || "Gagal menghapus akun di server. Silakan coba lagi.");
+        return;
+      }
+
+      toast.info("Akun beserta sesi dan progres berhasil dihapus dari server.");
       router.replace("/");
     }
   };
@@ -188,7 +230,7 @@ export default function SettingsPage() {
     <div className="space-y-8 animate-in fade-in duration-300">
       <PageHeader
         title="Profil & Pengaturan"
-        description="Kelola informasi publik, preferensi notifikasi, dan keamanan akun PathForge kamu."
+        description="Kelola informasi publik, privasi portofolio, preferensi pengingat, dan keamanan akun PathForge kamu."
       />
 
       <div className="grid gap-8 lg:grid-cols-12">
@@ -199,7 +241,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <User className="h-5 w-5 text-primary" />
               <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold">
-                Informasi Profil & Portofolio
+                Informasi Profil &amp; Portofolio
               </h2>
             </div>
 
@@ -301,7 +343,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <KeyRound className="h-5 w-5 text-primary" />
               <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold">
-                Keamanan & Kata Sandi
+                Keamanan &amp; Kata Sandi
               </h2>
             </div>
 
@@ -348,39 +390,99 @@ export default function SettingsPage() {
           </form>
         </div>
 
-        {/* Kolom Kanan: Preferensi & Zona Bahaya (4 Kolom) */}
+        {/* Kolom Kanan: Privasi, Preferensi & Zona Bahaya (4 Kolom) */}
         <div className="space-y-6 lg:col-span-4">
-          {/* Card Preferensi Notifikasi */}
+          {/* Card Privasi & Visibilitas Publik (PF-002) */}
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center gap-2 border-b border-border pb-4">
-              <Bell className="h-5 w-5 text-primary" />
+              <Globe className="h-5 w-5 text-primary" />
               <h3 className="font-[family-name:var(--font-heading)] text-base font-bold">
-                Preferensi Notifikasi
+                Privasi &amp; Visibilitas Publik
               </h3>
             </div>
 
             <div className="mt-4 space-y-4 text-xs">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-foreground">Pengingat Mingguan</p>
-                  <p className="text-muted-foreground">Kirim email progres & target belajar</p>
+                  <p className="font-semibold text-foreground">Portofolio Publik (/p/[username])</p>
+                  <p className="text-muted-foreground">
+                    Izinkan akses publik ke halaman CV portofoliomu. Jika nonaktif, hanya kamu yang dapat melihat pratinjau.
+                  </p>
                 </div>
                 <Switch
+                  aria-label="Portofolio publik"
+                  checked={data.settings.publicPortfolio}
+                  onCheckedChange={(v) => {
+                    updateSettings({ publicPortfolio: v });
+                    toast.success(
+                      v
+                        ? "Portofolio publik diaktifkan."
+                        : "Portofolio diatur menjadi privat."
+                    );
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                <div>
+                  <p className="font-semibold text-foreground">Tampilkan di Leaderboard</p>
+                  <p className="text-muted-foreground">
+                    Tampilkan profil dan perolehan XP kamu kepada pembelajar lain di Papan Peringkat.
+                  </p>
+                </div>
+                <Switch
+                  aria-label="Tampilkan di papan peringkat"
+                  checked={Boolean(data.settings.showOnLeaderboard)}
+                  onCheckedChange={(v) => {
+                    updateSettings({ showOnLeaderboard: v });
+                    toast.success(
+                      v
+                        ? "Profil ditampilkan di Leaderboard publik."
+                        : "Profil disembunyikan dari Leaderboard pengguna lain."
+                    );
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card Preferensi Notifikasi (PF-020 & PF-029) */}
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center gap-2 border-b border-border pb-4">
+              <Bell className="h-5 w-5 text-primary" />
+              <h3 className="font-[family-name:var(--font-heading)] text-base font-bold">
+                Preferensi Pengingat
+              </h3>
+            </div>
+
+            <div className="mt-4 space-y-4 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-foreground">Pengingat Mingguan</p>
+                  <p className="text-muted-foreground">Simpan preferensi pengingat target belajar mingguan</p>
+                </div>
+                <Switch
+                  aria-label="Pengingat mingguan"
                   checked={data.settings.weeklyReminder}
                   onCheckedChange={(v) => updateSettings({ weeklyReminder: v })}
                 />
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">Pembaruan Modul Baru</p>
-                  <p className="text-muted-foreground">Info saat ada simulasi baru</p>
+                  <p className="text-muted-foreground">Simpan preferensi informasi saat ada simulasi baru</p>
                 </div>
                 <Switch
+                  aria-label="Pembaruan modul baru"
                   checked={data.settings.emailNotifications}
                   onCheckedChange={(v) => updateSettings({ emailNotifications: v })}
                 />
               </div>
+
+              <p className="rounded-lg bg-muted/60 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                Catatan: Saat ini pengaturan di atas hanya menyimpan preferensi pada profil akunmu (belum mengirim email keluar secara otomatis).
+              </p>
             </div>
           </div>
 
@@ -389,7 +491,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <DatabaseBackup className="h-5 w-5 text-primary" />
               <h3 className="font-[family-name:var(--font-heading)] text-base font-bold">
-                Cadangan & Pemulihan Data (.json)
+                Cadangan &amp; Pemulihan Data (.json)
               </h3>
             </div>
 
@@ -432,6 +534,35 @@ export default function SettingsPage() {
                   )}
                   Pulihkan dari File Backup (.json)
                 </Button>
+
+                <div className="space-y-2 border-t border-border pt-3">
+                  <Label htmlFor="backupJsonPaste" className="text-xs">
+                    Atau Tempel JSON Backup (Tersimpan untuk Retry):
+                  </Label>
+                  <Textarea
+                    id="backupJsonPaste"
+                    rows={3}
+                    placeholder='{"app":"PathForge","version":1,"data":{...}}'
+                    value={backupJsonText}
+                    onChange={(e) => setBackupJsonText(e.target.value)}
+                    className="font-mono text-[11px]"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={restoringBackup || !backupJsonText.trim()}
+                    onClick={handleRestoreFromText}
+                    className="w-full gap-1.5 text-xs"
+                  >
+                    {restoringBackup ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5 text-primary" />
+                    )}
+                    Pulihkan dari Teks JSON
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -455,7 +586,7 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleReset}
-                  className="mt-2 text-xs w-full gap-1.5 text-warning border-warning/30 hover:bg-warning/10"
+                  className="mt-2 text-xs w-full gap-1.5 text-warning-foreground dark:text-warning border-warning/30 hover:bg-warning/10"
                 >
                   <RotateCcw className="h-3.5 w-3.5" /> Reset Progres Saja
                 </Button>
@@ -464,15 +595,21 @@ export default function SettingsPage() {
               <div className="border-t border-destructive/20 pt-4">
                 <p className="text-xs font-semibold text-foreground">Hapus Akun Permanen</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Menghapus kredensial akun dan seluruh data lokal di perangkat ini.
+                  Menghapus kredensial akun, sesi aktif, dan seluruh data di server serta perangkat ini.
                 </p>
                 <Button
                   variant="destructive"
                   size="sm"
+                  disabled={deletingAccount}
                   onClick={handleDelete}
                   className="mt-2 text-xs w-full gap-1.5"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> Hapus Akun Saya
+                  {deletingAccount ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Hapus Akun Saya
                 </Button>
               </div>
             </div>

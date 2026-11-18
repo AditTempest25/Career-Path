@@ -1,27 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
-  Building2,
-  CheckCircle2,
   CheckSquare,
   Clock,
   ExternalLink,
-  HelpCircle,
+  Info,
   Lightbulb,
   Loader2,
   MessageSquare,
   RotateCcw,
   Send,
-  Sparkles,
   Square,
   Star,
   Target,
-  Trophy,
   UserCheck,
   Zap,
 } from "lucide-react";
@@ -45,7 +41,7 @@ const leadQA = [
   },
   {
     q: "Berapa panjang penjelasan teknis yang ideal?",
-    a: "Fokus pada keputusan teknis dan *trade-off* yang kamu ambil. Tulisan sekitar 100–200 kata yang padat jauh lebih bernilai dibanding salinan teori.",
+    a: "Fokus pada keputusan teknis dan trade-off yang kamu ambil. Tulisan sekitar 100–200 kata yang padat jauh lebih bernilai dibanding salinan teori.",
   },
   {
     q: "Apakah boleh menggunakan AI atau pustaka pihak ketiga?",
@@ -55,8 +51,7 @@ const leadQA = [
 
 export default function SimulationDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const { data, saveDraft, submitSimulation, toggleFeatured } = useApp();
+  const { ready, data, saveDraft, flushDraft, submitSimulation, toggleFeatured } = useApp();
   const simId = params.id as string;
   const sim = getSimulation(simId);
 
@@ -69,19 +64,49 @@ export default function SimulationDetailPage() {
   const [submissionResult, setSubmissionResult] = useState<Submission | null>(
     existingSubmission || null
   );
+  const hydratedSimRef = useRef<string | null>(null);
 
   // Pre-submission Self Check
   const [checklist, setChecklist] = useState<Record<number, boolean>>({});
   const [activeTab, setActiveTab] = useState<"workspace" | "lead">("workspace");
 
+  // PF-005: Prioritaskan draft revisi terbaru di editor, sambil tetap menampilkan submission terakhir di riwayat hasil.
   useEffect(() => {
     if (existingSubmission) {
-      setAnswers(existingSubmission.answers);
       setSubmissionResult(existingSubmission);
-    } else if (draft) {
-      setAnswers(draft);
     }
-  }, [existingSubmission, draft]);
+  }, [existingSubmission]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const hasDraft = Boolean(draft && Object.keys(draft).length > 0);
+    const hasSubmission = Boolean(existingSubmission);
+
+    if (hydratedSimRef.current !== simId) {
+      if (hasDraft) {
+        setAnswers({ ...(existingSubmission?.answers || {}), ...draft });
+        hydratedSimRef.current = simId;
+      } else if (hasSubmission && existingSubmission) {
+        setAnswers(existingSubmission.answers);
+        hydratedSimRef.current = simId;
+      }
+      return;
+    }
+
+    // Jika sebelumnya kosong lalu data server selesai disinkronkan
+    setAnswers((prev) => {
+      if (Object.keys(prev).length > 0) return prev;
+      if (hasDraft) return { ...(existingSubmission?.answers || {}), ...draft };
+      if (existingSubmission) return existingSubmission.answers;
+      return prev;
+    });
+  }, [ready, simId, draft, existingSubmission]);
+
+  useEffect(() => {
+    return () => {
+      flushDraft(simId);
+    };
+  }, [flushDraft, simId]);
 
   if (!sim) {
     return (
@@ -96,6 +121,7 @@ export default function SimulationDetailPage() {
 
   const handleFieldChange = (id: string, value: string) => {
     const next = { ...answers, [id]: value };
+    hydratedSimRef.current = sim.id;
     setAnswers(next);
     saveDraft(sim.id, next);
   };
@@ -120,12 +146,19 @@ export default function SimulationDetailPage() {
       setSubmitting(false);
       if (res) {
         setSubmissionResult(res);
-        toast.success(`Tugas berhasil dinilai! Skor kamu: ${res.score}/100 🎉`);
+        toast.success(`Tugas berhasil dinilai! Skor kamu: ${res.score}/100 (Percobaan ke-${res.attempts}) 🎉`);
       }
-    }, 700);
+    }, 500);
   };
 
   const isFeatured = data.featured.includes(sim.id);
+  const hasUnsavedRevision = Boolean(
+    submissionResult &&
+      draft &&
+      Object.keys(draft).some(
+        (k) => (draft[k] ?? "") !== (submissionResult.answers[k] ?? "")
+      )
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -159,7 +192,7 @@ export default function SimulationDetailPage() {
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex flex-col items-start md:items-end gap-2 shrink-0">
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" /> {sim.estimatedTime}
@@ -186,7 +219,7 @@ export default function SimulationDetailPage() {
         <div className="mt-6 border-t border-border pt-6 space-y-4">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-              Konteks Proyek & Situasi Nyata
+              Konteks Proyek &amp; Situasi Nyata
             </h3>
             <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
               {sim.context}
@@ -195,7 +228,7 @@ export default function SimulationDetailPage() {
 
           {/* Ekspektasi Output & Interactive Self-Checklist */}
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
                 Checklist Mandiri Kriteria Output (Acceptance Criteria)
               </h3>
@@ -233,8 +266,8 @@ export default function SimulationDetailPage() {
         </div>
       </div>
 
-      {/* Tabs Menu: Workspace vs Tanya Lead */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
+      {/* Tabs Menu: Workspace vs Tanya Lead (PF-018: flex-wrap agar tidak overflow di 360px/390px) */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
         <Button
           variant={activeTab === "workspace" ? "secondary" : "ghost"}
           size="sm"
@@ -283,17 +316,22 @@ export default function SimulationDetailPage() {
       {/* Grid Utama: Form Workspace & Panel Hasil / Rubrik */}
       <div className="grid gap-8 lg:grid-cols-12">
         {/* Kolom Kiri: Form Pengumpulan (7 Kolom) */}
-        <div className="space-y-6 lg:col-span-7">
+        <div className="space-y-6 lg:col-span-7 min-w-0">
           <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between border-b border-border pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
               <div>
                 <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold">
-                  Lembar Kerja & Pengumpulan
+                  Lembar Kerja &amp; Pengumpulan
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Isi deliverable sesuai instruksi. Draf otomatis tersimpan di perambanmu.
+                  Isi deliverable sesuai instruksi. Draf revisi otomatis tersimpan secara berkala.
                 </p>
               </div>
+              {hasUnsavedRevision && (
+                <Badge variant="secondary" className="text-[11px]">
+                  Draf Revisi Aktif
+                </Badge>
+              )}
             </div>
 
             <div className="mt-6 space-y-6">
@@ -305,7 +343,7 @@ export default function SimulationDetailPage() {
 
                 return (
                   <div key={deliv.id} className="space-y-2">
-                    <div className="flex items-baseline justify-between">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <Label htmlFor={deliv.id} className="text-sm font-semibold">
                         {deliv.label}
                       </Label>
@@ -333,9 +371,9 @@ export default function SimulationDetailPage() {
                           className="font-mono text-xs"
                         />
                         {val && (
-                          <div className="flex items-center justify-between text-[11px] rounded-lg bg-muted/50 px-3 py-1.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] rounded-lg bg-muted/50 px-3 py-1.5">
                             <span className={validLink ? "text-success font-medium" : "text-destructive"}>
-                              {validLink ? "✓ URL Valid & Siap Direview" : "⚠ Format URL belum valid (gunakan https://)"}
+                              {validLink ? "✓ Format URL Valid" : "⚠ Format URL belum valid (gunakan https://)"}
                             </span>
                             {validLink && (
                               <a
@@ -368,7 +406,7 @@ export default function SimulationDetailPage() {
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
               <span className="text-xs text-muted-foreground">
                 {submissionResult
-                  ? `Percobaan ke-${submissionResult.attempts}`
+                  ? `Riwayat terakhir: Percobaan ke-${submissionResult.attempts}`
                   : "Belum dikirim"}
               </span>
 
@@ -388,7 +426,7 @@ export default function SimulationDetailPage() {
                     </>
                   ) : (
                     <>
-                      <Send className="h-4 w-4" /> Kumpulkan & Dapatkan Review
+                      <Send className="h-4 w-4" /> Kumpulkan &amp; Dapatkan Review
                     </>
                   )}
                 </Button>
@@ -398,7 +436,7 @@ export default function SimulationDetailPage() {
 
           {/* Tips Pengerjaan */}
           <div className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-2 text-warning">
+            <div className="flex items-center gap-2 text-warning-foreground dark:text-warning">
               <Lightbulb className="h-5 w-5" />
               <h3 className="font-semibold text-sm text-foreground">Tips Agar Nilaimu Maksimal</h3>
             </div>
@@ -414,12 +452,23 @@ export default function SimulationDetailPage() {
         </div>
 
         {/* Kolom Kanan: Hasil Penilaian / Rubrik (5 Kolom) */}
-        <div className="space-y-6 lg:col-span-5">
+        <div className="space-y-6 lg:col-span-5 min-w-0">
+          {/* PF-015: Penjelasan transparansi evaluasi heuristik */}
+          <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4 text-xs text-muted-foreground space-y-1">
+            <div className="flex items-center gap-1.5 font-semibold text-foreground">
+              <Info className="h-4 w-4 text-primary shrink-0" />
+              Metode Evaluasi Heuristik Otomatis
+            </div>
+            <p className="leading-relaxed">
+              Skor dan umpan balik dihitung secara heuristik berdasarkan kelengkapan deliverable, kedalaman uraian kata, pencocokan kata kunci teknis, serta format tautan (tanpa mengeksekusi kode di repositori eksternal).
+            </p>
+          </div>
+
           {submissionResult ? (
             <div className="rounded-2xl border border-border bg-card p-6 animate-in fade-in duration-300">
               <div className="text-center">
                 <Badge variant="outline" className="mb-3">
-                  Hasil Review Otomatis
+                  Hasil Review Heuristik · Percobaan #{submissionResult.attempts}
                 </Badge>
                 <div className="flex justify-center">
                   <ScoreRing value={submissionResult.score} size={120} stroke={10} label="Skor Akhir" />
@@ -435,7 +484,7 @@ export default function SimulationDetailPage() {
               {/* Rincian Skor per Kriteria */}
               <div className="mt-6 space-y-3 border-t border-border pt-4">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Breakdown Kriteria
+                  Breakdown Kriteria Rubrik
                 </h4>
                 {submissionResult.breakdown.map((crit) => (
                   <div key={crit.id} className="rounded-lg bg-muted/50 p-2.5 text-xs">
@@ -452,13 +501,13 @@ export default function SimulationDetailPage() {
               {/* Rekomendasi Perbaikan */}
               {submissionResult.feedback.improvements.length > 0 && (
                 <div className="mt-6 border-t border-border pt-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-warning flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-warning-foreground dark:text-warning flex items-center gap-1.5">
                     <AlertCircle className="h-3.5 w-3.5" /> Saran Pengembangan
                   </h4>
                   <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
                     {submissionResult.feedback.improvements.map((imp, idx) => (
                       <li key={idx} className="flex items-start gap-2">
-                        <span className="text-warning font-bold">·</span>
+                        <span className="text-primary font-bold">·</span>
                         <span>{imp}</span>
                       </li>
                     ))}
@@ -469,10 +518,10 @@ export default function SimulationDetailPage() {
           ) : (
             <div className="rounded-2xl border border-border bg-card p-6">
               <h3 className="font-[family-name:var(--font-heading)] text-base font-bold text-foreground">
-                Rubrik Penilaian
+                Rubrik Penilaian Heuristik
               </h3>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                Karyamu akan dinilai berdasarkan standar berikut:
+                Karyamu akan dinilai otomatis menggunakan indikator rubrik berikut:
               </p>
 
               <div className="mt-4 space-y-3">

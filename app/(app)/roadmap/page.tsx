@@ -81,9 +81,13 @@ export default function RoadmapPage() {
     );
   }
 
-  const handleToggle = (id: string, title: string) => {
-    const isCompletedNow = toggleModule(id);
-    if (isCompletedNow) {
+  const handleToggle = async (id: string, title: string) => {
+    const res = await toggleModule(id);
+    if (!res.ok) {
+      toast.error(res.error || "Gagal menyimpan perubahan modul ke server.");
+      return;
+    }
+    if (res.completed) {
       toast.success(`Modul "${title}" selesai! XP bertambah 🎉`);
     } else {
       toast.info(`Status modul "${title}" dibatalkan.`);
@@ -170,7 +174,7 @@ export default function RoadmapPage() {
             </Button>
           </div>
         </div>
-        <Progress value={progress.percent} className="mt-4 h-2.5" />
+        <Progress value={progress.percent} aria-label="Progres penyelesaian roadmap" className="mt-4 h-2.5" />
       </div>
 
       {/* Interactive Study Planner & Projected Timeline Drawer */}
@@ -218,6 +222,7 @@ export default function RoadmapPage() {
                 min={3}
                 max={30}
                 step={1}
+                aria-label="Komitmen jam belajar per minggu"
                 onValueChange={(val) => setWeeklyHours(val[0])}
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">

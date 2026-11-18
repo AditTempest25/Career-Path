@@ -1,4 +1,4 @@
-import type { AssessmentQuestion, CareerId } from "@/lib/types";
+import type { AssessmentQuestion, AssessmentResult, CareerId } from "@/lib/types";
 import { careerIds } from "@/lib/data/careers";
 
 export const assessmentQuestions: AssessmentQuestion[] = [
@@ -269,4 +269,56 @@ export function calculateScores(answers: Record<string, string>) {
 
 export function rankCareers(scores: Record<CareerId, number>) {
   return (Object.entries(scores) as [CareerId, number][]).sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * PF-006: Validasi bahwa seluruh 8 pertanyaan (q1..q8) dijawab dengan ID soal dan ID opsi yang sah.
+ */
+export function validateCompleteAssessmentAnswers(
+  answers: Record<string, string> | null | undefined
+): { ok: true } | { ok: false; error: string } {
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+    return {
+      ok: false,
+      error: "Data jawaban asesmen tidak valid.",
+    };
+  }
+
+  const validQuestionIds = new Set(assessmentQuestions.map((q) => q.id));
+  const providedKeys = Object.keys(answers);
+
+  for (const key of providedKeys) {
+    if (!validQuestionIds.has(key)) {
+      return {
+        ok: false,
+        error: `ID pertanyaan "${key}" tidak dikenali dalam asesmen Career GPS.`,
+      };
+    }
+  }
+
+  for (const q of assessmentQuestions) {
+    const chosenId = answers[q.id];
+    if (!chosenId || typeof chosenId !== "string") {
+      return {
+        ok: false,
+        error: `Harap jawab seluruh ${assessmentQuestions.length} pertanyaan asesmen (pertanyaan ${q.id.toUpperCase()} belum dijawab).`,
+      };
+    }
+    const validOption = q.options.some((opt) => opt.id === chosenId);
+    if (!validOption) {
+      return {
+        ok: false,
+        error: `Pilihan jawaban "${chosenId}" pada pertanyaan ${q.id.toUpperCase()} tidak valid.`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+export function hasValidSavedAssessment(
+  assessment: AssessmentResult | null | undefined
+): boolean {
+  if (!assessment || typeof assessment !== "object") return false;
+  return validateCompleteAssessmentAnswers(assessment.answers).ok;
 }

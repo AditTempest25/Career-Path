@@ -182,6 +182,134 @@ export const skillDictionary: SkillKeywordMap[] = [
     keywords: ["kotlin", "android studio", "android native", "gradle", "jetpack compose"],
     category: "mobile",
   },
+
+  /* Digital Marketer (Non-IT) */
+  {
+    skill: "Copywriting",
+    careerIds: ["digital-marketer"],
+    keywords: ["copywriting", "copywriter", "content writing", "storytelling", "aida", "scriptwriting", "caption"],
+    category: "general",
+  },
+  {
+    skill: "Social Media Strategy",
+    careerIds: ["digital-marketer"],
+    keywords: ["social media", "instagram", "tiktok", "content pillar", "content calendar", "engagement", "kol", "influencer"],
+    category: "general",
+  },
+  {
+    skill: "SEO & Content",
+    careerIds: ["digital-marketer"],
+    keywords: ["seo", "search engine optimization", "keyword research", "google search console", "ahrefs", "semrush", "artikel"],
+    category: "general",
+  },
+  {
+    skill: "Performance Ads",
+    careerIds: ["digital-marketer"],
+    keywords: ["meta ads", "facebook ads", "google ads", "tiktok ads", "sem", "roas", "cpa", "cpc", "paid ads"],
+    category: "general",
+  },
+  {
+    skill: "Marketing Analytics",
+    careerIds: ["digital-marketer"],
+    keywords: ["google analytics", "ga4", "ctr", "conversion rate", "marketing funnel", "insight", "campaign report"],
+    category: "analysis",
+  },
+
+  /* HR & Talent Acquisition (Non-IT) */
+  {
+    skill: "Recruitment & Selection",
+    careerIds: ["hr-specialist"],
+    keywords: ["recruitment", "rekrutmen", "talent acquisition", "cv screening", "sourcing", "job description", "hiring"],
+    category: "general",
+  },
+  {
+    skill: "Behavioral Interview",
+    careerIds: ["hr-specialist"],
+    keywords: ["interview", "wawancara", "behavioral interview", "metode star", "psikotes", "asesmen", "seleksi"],
+    category: "general",
+  },
+  {
+    skill: "Onboarding & Training",
+    careerIds: ["hr-specialist"],
+    keywords: ["onboarding", "orientasi", "training", "pelatihan", "learning and development", "l&d", "employer branding"],
+    category: "general",
+  },
+  {
+    skill: "Performance Management",
+    careerIds: ["hr-specialist"],
+    keywords: ["kpi", "okr", "performance appraisal", "evaluasi kinerja", "workload analysis", "kompetensi"],
+    category: "general",
+  },
+  {
+    skill: "Employee Relations",
+    careerIds: ["hr-specialist"],
+    keywords: ["employee relations", "hris", "pkwt", "pkwtt", "bpjs", "payroll", "hubungan industrial", "sdm", "human resources"],
+    category: "general",
+  },
+
+  /* Finance & Accounting Analyst (Non-IT) */
+  {
+    skill: "Financial Accounting",
+    careerIds: ["finance-analyst"],
+    keywords: ["akuntansi", "accounting", "jurnal", "neraca", "laba rugi", "laporan keuangan", "balance sheet", "income statement", "audit"],
+    category: "analysis",
+  },
+  {
+    skill: "Spreadsheet & Excel Modeling",
+    careerIds: ["finance-analyst", "data-analyst"],
+    keywords: ["financial modeling", "accurate", "jurnal.id", "sap", "erp", "rekonsiliasi", "pembukuan"],
+    category: "data",
+  },
+  {
+    skill: "Budgeting & Forecasting",
+    careerIds: ["finance-analyst"],
+    keywords: ["budgeting", "forecasting", "anggaran", "variance analysis", "opex", "capex", "cost control", "rab"],
+    category: "analysis",
+  },
+  {
+    skill: "Cash Flow Analysis",
+    careerIds: ["finance-analyst"],
+    keywords: ["cash flow", "arus kas", "piutang", "hutang", "account receivable", "account payable", "working capital", "likuiditas"],
+    category: "analysis",
+  },
+  {
+    skill: "Taxation & Compliance",
+    careerIds: ["finance-analyst"],
+    keywords: ["pajak", "tax", "pph 21", "pph 23", "ppn", "brevet", "e-faktur", "spt", "perpajakan"],
+    category: "analysis",
+  },
+
+  /* Project & Operations Manager (Non-IT) */
+  {
+    skill: "Project Planning",
+    careerIds: ["project-manager"],
+    keywords: ["project management", "manajemen proyek", "project charter", "wbs", "gantt chart", "timeline", "milestone", "trello", "asana"],
+    category: "analysis",
+  },
+  {
+    skill: "Risk & Issue Management",
+    careerIds: ["project-manager"],
+    keywords: ["risk management", "manajemen risiko", "mitigasi", "risk register", "contingency", "problem solving"],
+    category: "analysis",
+  },
+  {
+    skill: "Stakeholder Communication",
+    careerIds: ["project-manager", "business-analyst"],
+    keywords: ["koordinasi", "kepemimpinan", "leadership", "negosiasi", "vendor management", "presentasi"],
+    category: "general",
+  },
+  {
+    skill: "Agile & Waterfall",
+    careerIds: ["project-manager", "business-analyst"],
+    keywords: ["waterfall", "critical path", "pmp", "capm", "sprint planning", "project lifecycle"],
+    category: "analysis",
+  },
+  {
+    skill: "Operations Optimization",
+    careerIds: ["project-manager"],
+    keywords: ["operasional", "operations", "sop", "standard operating procedure", "supply chain", "logistik", "lean", "efisiensi"],
+    category: "analysis",
+  },
 ];
 
 export interface ScanResult {

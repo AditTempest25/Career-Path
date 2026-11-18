@@ -14,7 +14,7 @@ export function CareersSection() {
             <span className="text-balance">Pilih Jalurmu, Kami Pandu Langkahnya</span>
           </h2>
           <p className="mt-4 text-pretty text-muted-foreground">
-            Eksplorasi jalur karier teknologi dengan roadmap terstruktur, simulasi kerja nyata, dan acuan gaji standar industri Indonesia.
+            Eksplorasi 10 jalur karier populer (IT maupun Non-IT: Marketing, HR, Finance, & Manajemen Proyek) lengkap dengan roadmap terstruktur, simulasi kerja nyata, dan acuan gaji standar industri Indonesia.
           </p>
         </div>
 

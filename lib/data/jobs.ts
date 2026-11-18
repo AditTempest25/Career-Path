@@ -275,6 +275,134 @@ export const jobs: Job[] = [
     perks: ["Fasilitas gym kantor", "Tunjangan kesehatan & kacamata", "Fleksibilitas jam kerja"],
     postedDaysAgo: 3,
   },
+
+  /* Digital Marketer (Non-IT) */
+  {
+    id: "job-dm-kopinusantara",
+    careerId: "digital-marketer",
+    title: "Digital Marketing & Social Media Specialist",
+    company: {
+      name: "Kopi Nusantara",
+      industry: "F&B & Retail",
+      initials: "KN",
+      location: "Jakarta Selatan",
+    },
+    type: "Full-time",
+    workplace: "Hybrid (Jakarta)",
+    salary: { min: 6.5, max: 10 },
+    requiredSkills: ["Copywriting", "Social Media Strategy", "Performance Ads", "Marketing Analytics"],
+    minReadinessScore: 60,
+    description:
+      "Kelola kampanye digital kreatif, pertumbuhan akun TikTok & Instagram, serta optimasi iklan peluncuran menu baru Kopi Nusantara di lebih dari 200 gerai.",
+    responsibilities: [
+      "Merancang kalender konten bulanan dan menulis copywriting yang engaging.",
+      "Mengelola kampanye iklan Meta Ads & TikTok Ads dengan target ROAS positif.",
+      "Bekerja sama dengan KOL/Influencer dan menganalisis laporan performa mingguan.",
+    ],
+    requirements: [
+      "Terbuka untuk seluruh jurusan (Komunikasi, Bisnis, Pemasaran, Sastra, dll.).",
+      "Memahami cara kerja algoritma Instagram Reels, TikTok, dan dasar SEO/Ads.",
+      "Memiliki portofolio rencana kampanye atau contoh karya konten/copywriting.",
+    ],
+    perks: ["Tunjangan kopi gratis setiap hari", "Bonus performa kampanye", "BPJS lengkap"],
+    postedDaysAgo: 1,
+  },
+
+  /* HR & Talent Acquisition (Non-IT) */
+  {
+    id: "job-hr-sinarniaga",
+    careerId: "hr-specialist",
+    title: "People Operations & Talent Acquisition Officer",
+    company: {
+      name: "Sinar Niaga Lestari",
+      industry: "FMCG & Distribusi",
+      initials: "SN",
+      location: "Jakarta Barat",
+    },
+    type: "Full-time",
+    workplace: "Hybrid (Jakarta)",
+    salary: { min: 6, max: 9.5 },
+    requiredSkills: ["Recruitment & Selection", "Behavioral Interview", "Onboarding & Training"],
+    minReadinessScore: 60,
+    description:
+      "Jalankan proses end-to-end recruitment, wawancara berbasis metode STAR, dan program onboarding karyawan baru di jaringan distribusi nasional.",
+    responsibilities: [
+      "Menyusun Job Description, melakukan CV screening, dan menjadwalkan wawancara.",
+      "Melakukan Behavioral Event Interview (BEI) bersama hiring manager.",
+      "Mengelola program orientasi (onboarding) dan evaluasi masa percobaan karyawan.",
+    ],
+    requirements: [
+      "Lulusan Psikologi, Manajemen SDM, Hukum, Administrasi Bisnis, atau bidang relevan.",
+      "Komunikatif, empatik, dan memahami teknik wawancara terstruktur (STAR).",
+      "Terbiasa menggunakan Google Workspace dan platform rekrutmen (LinkedIn/JobStreet).",
+    ],
+    perks: ["Jenjang karier HR Generalist/BP", "Asuransi kesehatan swasta", "Pelatihan sertifikasi SDM"],
+    postedDaysAgo: 2,
+  },
+
+  /* Finance & Accounting Analyst (Non-IT) */
+  {
+    id: "job-fa-primaritel",
+    careerId: "finance-analyst",
+    title: "Junior Finance & Accounting Analyst",
+    company: {
+      name: "Prima Ritelindo",
+      industry: "Ritel Modern",
+      initials: "PR",
+      location: "Bandung / Jakarta",
+    },
+    type: "Full-time",
+    workplace: "Onsite (Bandung)",
+    salary: { min: 6.5, max: 11 },
+    requiredSkills: ["Financial Accounting", "Spreadsheet & Excel Modeling", "Budgeting & Forecasting", "Cash Flow Analysis"],
+    minReadinessScore: 65,
+    description:
+      "Analisis laporan keuangan bulanan, pantau realisasi anggaran operasional cabang, dan dukung manajemen dalam menjaga kesehatan arus kas perusahaan.",
+    responsibilities: [
+      "Menyiapkan laporan Laba Rugi, Neraca, dan Arus Kas secara berkala.",
+      "Melakukan analisis selisih anggaran (Budget vs Actual Variance).",
+      "Memantau perputaran piutang usaha, pembayaran vendor, dan kepatuhan pajak dasar.",
+    ],
+    requirements: [
+      "Lulusan Akuntansi, Manajemen Keuangan, Ekonomi, atau Perpajakan.",
+      "Mahir mengoperasikan Microsoft Excel / Google Sheets (Pivot, VLOOKUP/XLOOKUP).",
+      "Teliti, berintegritas tinggi, dan memahami prinsip dasar akuntansi.",
+    ],
+    perks: ["Bonus akhir tahun", "Tunjangan sertifikasi Brevet Pajak", "BPJS Kesehatan & TK"],
+    postedDaysAgo: 2,
+  },
+
+  /* Project & Operations Manager (Non-IT) */
+  {
+    id: "job-pm-kliniksehat",
+    careerId: "project-manager",
+    title: "Project & Operations Management Officer",
+    company: {
+      name: "Klinik Sehat Bersama",
+      industry: "Layanan Kesehatan",
+      initials: "KS",
+      location: "Surabaya / Jakarta",
+    },
+    type: "Full-time",
+    workplace: "Hybrid (Surabaya)",
+    salary: { min: 7, max: 12.5 },
+    requiredSkills: ["Project Planning", "Risk & Issue Management", "Stakeholder Communication", "Operations Optimization"],
+    minReadinessScore: 65,
+    description:
+      "Pimpin perencanaan dan eksekusi proyek ekspansi cabang klinik baru serta standarisasi SOP operasional lintas departemen.",
+    responsibilities: [
+      "Menyusun Project Charter, WBS, timeline Gantt Chart, dan matriks RACI.",
+      "Memantau progres lintas divisi (Legal, Konstruksi, Pengadaan, HR) dan memitigasi risiko.",
+      "Mengevaluasi efisiensi SOP operasional harian cabang.",
+    ],
+    requirements: [
+      "Terbuka untuk lulusan Manajemen, Teknik Industri, Bisnis, Kesehatan Masyarakat, dll.",
+      "Terorganisir, tegas dalam manajemen waktu, dan cakap memimpin koordinasi tim.",
+      "Terbiasa menggunakan alat manajemen proyek (Trello, Asana, Notion, atau Spreadsheet).",
+    ],
+    perks: ["Tunjangan kesehatan keluarga", "Insentif penyelesaian proyek tepat waktu", "Program pengembangan kepemimpinan"],
+    postedDaysAgo: 1,
+  },
 ];
 
 export function calculateJobMatch(job: Job, data: UserData): {

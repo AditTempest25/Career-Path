@@ -1,6 +1,6 @@
 # PathForge — Career GPS & Work Simulator
 
-PathForge adalah aplikasi web untuk membantu **mahasiswa, fresh graduate, dan career switcher** di Indonesia menemukan jalur karier teknologi yang cocok, belajar dengan roadmap terarah, berlatih lewat simulasi kerja nyata, lalu membangun portofolio yang siap ditunjukkan ke rekruter.
+PathForge adalah aplikasi web untuk membantu **mahasiswa, fresh graduate, dan career switcher** di Indonesia menemukan jalur karier yang cocok (baik **IT maupun Non-IT**), belajar dengan roadmap terarah, berlatih lewat simulasi kerja nyata, lalu membangun portofolio yang siap ditunjukkan ke rekruter.
 
 > Proyek ini dibuat untuk tugas kuliah dan demo portofolio.
 
@@ -10,17 +10,17 @@ PathForge adalah aplikasi web untuk membantu **mahasiswa, fresh graduate, dan ca
 
 | Fitur | Rute | Keterangan |
 | :--- | :--- | :--- |
-| **Landing Page** | `/` | Halaman perkenalan, daftar jalur karier, dan tombol daftar/masuk |
+| **Landing Page** | `/` | Halaman perkenalan, daftar 10 jalur karier (IT & Non-IT), dan tombol daftar/masuk |
 | **Register, Login & Akun Demo** | `/register`, `/login` | Daftar akun, masuk, lupa kata sandi (OTP 6 digit), dan masuk 1-klik dengan akun demo |
-| **Asesmen Career GPS** | `/onboarding` | 8 pertanyaan minat & gaya kerja → rekomendasi jalur karier dengan skor kecocokan |
+| **Asesmen Career GPS** | `/onboarding` | 8 pertanyaan minat & gaya kerja → rekomendasi 10 jalur karier (IT & Non-IT) dengan skor kecocokan |
 | **Dashboard** | `/dashboard` | Skor kesiapan kerja, misi pengguna baru (*Starter Quests*), rekomendasi langkah berikutnya, dan aktivitas terakhir |
-| **Jalur Karier & Perbandingan** | `/careers`, `/careers/[id]`, `/careers/compare` | 6 jalur karier lengkap dengan gaji (Rupiah), skill, dan prospek; bisa dibandingkan hingga 3 sekaligus |
+| **Jalur Karier & Perbandingan** | `/careers`, `/careers/[id]`, `/careers/compare` | 10 jalur karier (Web, Mobile, UI/UX, Data, QA, Business Analyst, Digital Marketing, HR, Finance, Project Manager) lengkap dengan gaji Rupiah; bisa dibandingkan hingga 3 sekaligus |
 | **Roadmap Belajar** | `/roadmap` | Checklist modul per fase, perencana jadwal belajar, catatan pribadi per modul, dan sertifikat saat selesai |
-| **Work Simulator** | `/simulator` | 12 tugas kerja nyata dari studi kasus perusahaan Indonesia, dinilai otomatis dengan rubrik + feedback |
+| **Work Simulator** | `/simulator` | 16 tugas kerja nyata dari studi kasus perusahaan Indonesia (IT & Non-IT), dinilai otomatis dengan rubrik + feedback |
 | **Kuis Kilat Harian** | Dashboard | 3 soal singkat per hari (+25 XP) untuk menjaga streak belajar |
 | **Portofolio & CV Publik** | `/portfolio`, `/p/[username]` | Pilih hasil simulasi terbaik, edit profil, dan cetak CV ke PDF |
-| **CV Skill Scanner** | `/scanner` | Tempel isi CV → deteksi skill yang sudah dikuasai dan tandai modul roadmap otomatis |
-| **Lowongan Kerja** | `/jobs` | 12 lowongan dengan persentase kecocokan dan lamar 1-klik |
+| **CV Skill Scanner** | `/scanner` | Tempel isi CV → deteksi skill (IT & Non-IT) yang sudah dikuasai dan tandai modul roadmap otomatis |
+| **Lowongan Kerja** | `/jobs` | 16 lowongan (IT & Non-IT) dengan persentase kecocokan dan lamar 1-klik |
 | **Latihan Interview** | `/interview` | Latihan wawancara metode STAR dengan timer dan contoh jawaban |
 | **Kalkulator Gaji (THP)** | `/calculator` | Hitung gaji bersih setelah BPJS & PPh 21, alokasi 50/30/20, dan proyeksi 5 tahun |
 | **Papan Peringkat (Leaderboard)** | `/leaderboard` | Peringkat pembelajar berdasarkan Total XP, Level, Kesiapan Kerja, dan Streak |

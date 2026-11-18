@@ -232,6 +232,102 @@ export const interviewQuestions: InterviewQuestion[] = [
     recruiterTip:
       "Pengalaman menangani kasus nyata seperti koneksi putus-nyambung menunjukkan kematangan teknis seorang mobile developer.",
   },
+
+  /* Digital Marketer (Non-IT) */
+  {
+    id: "int-dm-roas",
+    careerId: "digital-marketer",
+    category: "situational",
+    categoryLabel: "Strategi Digital Marketing",
+    question: "Jika kampanye iklan atau konten media sosial yang kamu jalankan memiliki banyak views/reach tetapi konversi penjualannya sangat rendah, apa yang kamu lakukan?",
+    context: "Menguji ketajaman analisis marketing funnel dari tahap Awareness ke Conversion.",
+    expectedTimeMinutes: 3,
+    starGuide: {
+      situation: "Kampanye peluncuran produk mendapatkan impresi tinggi di TikTok/Instagram, tetapi jumlah pembelian di halaman checkout sangat sedikit.",
+      task: "Menemukan titik kebocoran (drop-off) pada funnel dan menaikkan rasio konversi (Conversion Rate).",
+      action: "Audit kesesuaian antara janji pada hook iklan dengan isi halaman produk, cek kecepatan dan kemudahan proses pembelian, lakukan A/B testing pada Call-to-Action (CTA) serta penawaran promo, dan pasang iklan retargeting untuk audiens yang sudah mengunjungi halaman.",
+      result: "CTR dan Conversion Rate meningkat signifikan sehingga ROAS melampaui target 3x.",
+    },
+    idealAnswerKey: [
+      "Evaluasi keselarasan pesan iklan (hook) dengan halaman tujuan (landing page/marketplace).",
+      "Analisis metrik per tahap funnel (Reach -> CTR -> Landing Page View -> Add to Cart -> Purchase).",
+      "Lakukan A/B testing pada copywriting, visual kreatif, atau penawaran harga.",
+    ],
+    recruiterTip:
+      "Marketer yang unggul tidak hanya mengejar konten viral, tetapi paham cara mengubah perhatian menjadi penjualan nyata.",
+  },
+
+  /* HR & Talent Acquisition (Non-IT) */
+  {
+    id: "int-hr-screening",
+    careerId: "hr-specialist",
+    category: "hr-behavioral",
+    categoryLabel: "Rekrutmen & Seleksi SDM",
+    question: "Bagaimana caramu memastikan proses wawancara kandidat berjalan objektif, bebas bias, dan menghasilkan rekrutan yang tepat?",
+    context: "Menguji pemahaman tentang wawancara terstruktur (Behavioral Event Interview) dan objektivitas HR.",
+    expectedTimeMinutes: 3,
+    starGuide: {
+      situation: "Sering terjadi perbedaan penilaian subjektif antar pewawancara saat memilih kandidat baru.",
+      task: "Membangun standar seleksi yang adil, terukur, dan berbasis kompetensi jabatan.",
+      action: "Gunakan panduan Behavioral Event Interview (Metode STAR) dengan daftar pertanyaan yang seragam untuk setiap kandidat, serta buat Interview Scorecard berisi indikator perilaku nyata untuk setiap kompetensi.",
+      result: "Keputusan rekrutmen menjadi lebih cepat, objektif, dan tingkat kecocokan karyawan baru meningkat.",
+    },
+    idealAnswerKey: [
+      "Terapkan wawancara terstruktur berbasis perilaku masa lalu (Metode STAR).",
+      "Gunakan matriks penilaian (Interview Scorecard) yang disepakati bersama user/manajer.",
+      "Fokus pada bukti perilaku nyata kandidat, bukan kesan pertama yang subjektif.",
+    ],
+    recruiterTip:
+      "HR profesional selalu mengandalkan indikator perilaku terukur untuk meminimalkan bias personal.",
+  },
+
+  /* Finance & Accounting Analyst (Non-IT) */
+  {
+    id: "int-fa-variance",
+    careerId: "finance-analyst",
+    category: "technical",
+    categoryLabel: "Analisis Keuangan & Anggaran",
+    question: "Ketika kamu menemukan pembengkakan biaya operasional yang melebihi anggaran (over-budget) pada laporan bulanan, langkah apa yang kamu ambil?",
+    context: "Menguji ketelitian analisis laporan keuangan dan kemampuan memberikan rekomendasi bisnis.",
+    expectedTimeMinutes: 3,
+    starGuide: {
+      situation: "Pada penutupan buku bulanan, terlihat realisasi biaya operasional melampaui anggaran sebesar 25%.",
+      task: "Mengidentifikasi sumber selisih (Budget Variance) dan memberikan rekomendasi pengendalian biaya.",
+      action: "Telusuri rincian transaksi pada buku besar (General Ledger) per pos biaya, bedakan antara pengeluaran satu kali (one-off) dan inefisiensi berulang, lalu diskusikan temuan data tersebut dengan kepala divisi terkait.",
+      result: "Ditemukan kebocoran biaya logistik yang berhasil ditekan kembali sesuai anggaran pada bulan berikutnya.",
+    },
+    idealAnswerKey: [
+      "Lakukan Budget vs Actual Variance Analysis hingga ke level transaksi.",
+      "Pahami konteks operasional di balik angka sebelum menarik kesimpulan.",
+      "Sajikan rekomendasi penghematan yang konkret beserta estimasi dampaknya ke arus kas.",
+    ],
+    recruiterTip:
+      "Finance Analyst terbaik bukan sekadar pencatat angka, melainkan mitra strategis yang memberi peringatan dini bagi perusahaan.",
+  },
+
+  /* Project & Operations Manager (Non-IT) */
+  {
+    id: "int-pm-delay",
+    careerId: "project-manager",
+    category: "situational",
+    categoryLabel: "Manajemen Proyek & Risiko",
+    question: "Apa yang kamu lakukan jika salah satu divisi atau vendor kunci mengalami keterlambatan yang mengancam tanggal rilis proyek?",
+    context: "Menguji kemampuan manajemen risiko, jalur kritis (Critical Path), dan komunikasi stakeholder.",
+    expectedTimeMinutes: 3,
+    starGuide: {
+      situation: "Menjelang tenggat proyek, salah satu paket kerja mengalami hambatan sehingga berpotensi mundur 2 minggu.",
+      task: "Menjaga agar milestone utama proyek tetap tercapai tanpa mengorbankan kualitas inti.",
+      action: "Evaluasi dampaknya pada Critical Path, lakukan rapat koordinasi darurat untuk mencari akar hambatan, alokasikan ulang sumber daya pada tugas paralel, aktifkan rencana kontingensi dari Risk Register, dan komunikasikan pembaruan jadwal secara transparan ke stakeholder.",
+      result: "Hambatan teratasi dengan penyesuaian urutan kerja dan proyek berhasil diluncurkan tepat waktu.",
+    },
+    idealAnswerKey: [
+      "Cek apakah tugas yang terlambat berada di jalur kritis (Critical Path).",
+      "Gunakan Risk Register dan rencana mitigasi/kontingensi yang sudah disiapkan.",
+      "Komunikasikan solusi dan opsi keputusan secara proaktif kepada stakeholder.",
+    ],
+    recruiterTip:
+      "Project Manager dinilai dari ketenangannya mengendalikan krisis dan kejelasan komunikasinya saat rencana awal berubah.",
+  },
 ];
 
 export function getInterviewQuestions(careerId?: string, category?: string) {

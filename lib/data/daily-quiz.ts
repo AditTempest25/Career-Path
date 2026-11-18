@@ -166,6 +166,70 @@ export const dailyQuizPool: FlashQuizQuestion[] = [
     explanation: "StatelessWidget bersifat statis/immutable. Sedangkan StatefulWidget dapat mengubah antarmuka layarnya saat terjadi interaksi pengguna dengan memanggil setState().",
     skillTag: "Flutter",
   },
+
+  /* Digital Marketer (Non-IT) */
+  {
+    id: "quiz-dm-1",
+    careerId: "digital-marketer",
+    question: "Dalam penulisan copywriting iklan, apa urutan yang benar dari formula 'AIDA'?",
+    options: [
+      "Analysis, Interest, Design, Action",
+      "Attention, Interest, Desire, Action",
+      "Audience, Impression, Data, Analytics",
+      "Advertising, Interaction, Decision, Awareness",
+    ],
+    correctIndex: 1,
+    explanation: "Formula AIDA terdiri dari Attention (menarik perhatian lewat hook), Interest (membangun minat), Desire (membangkitkan keinginan lewat manfaat produk), dan Action (ajakan bertindak/CTA).",
+    skillTag: "Copywriting",
+  },
+
+  /* HR & Talent Acquisition (Non-IT) */
+  {
+    id: "quiz-hr-1",
+    careerId: "hr-specialist",
+    question: "Dalam wawancara berbasis perilaku (Behavioral Event Interview), apa fungsi utama metode STAR?",
+    options: [
+      "Menilai penampilan fisik kandidat secara cepat",
+      "Menggali contoh perilaku nyata kandidat di masa lalu (Situation, Task, Action, Result) untuk memprediksi kinerja di masa depan",
+      "Menguji kemampuan menghafal teori manajemen",
+      "Menggantikan seluruh tahapan tes teknis",
+    ],
+    correctIndex: 1,
+    explanation: "Metode STAR membantu HR menggali bukti konkret bagaimana kandidat menghadapi situasi nyata di masa lalu, sehingga penilaian menjadi objektif dan minim asumsi.",
+    skillTag: "Behavioral Interview",
+  },
+
+  /* Finance & Accounting Analyst (Non-IT) */
+  {
+    id: "quiz-fa-1",
+    careerId: "finance-analyst",
+    question: "Laporan keuangan mana yang menunjukkan posisi Aset, Liabilitas (Utang), dan Ekuitas perusahaan pada satu titik waktu tertentu?",
+    options: [
+      "Laporan Laba Rugi (Income Statement)",
+      "Neraca Keuangan (Balance Sheet)",
+      "Laporan Arus Kas (Cash Flow Statement)",
+      "Faktur Pajak (Tax Invoice)",
+    ],
+    correctIndex: 1,
+    explanation: "Neraca (Balance Sheet) mencerminkan potret posisi keuangan perusahaan (Aset = Liabilitas + Ekuitas) pada tanggal tertentu, sedangkan Laba Rugi dan Arus Kas merangkum periode waktu.",
+    skillTag: "Financial Accounting",
+  },
+
+  /* Project & Operations Manager (Non-IT) */
+  {
+    id: "quiz-pm-1",
+    careerId: "project-manager",
+    question: "Dalam matriks pembagian peran RACI pada manajemen proyek, apa arti huruf 'A' (Accountable)?",
+    options: [
+      "Orang yang hanya perlu diberi tahu setelah proyek selesai",
+      "Pihak yang memiliki wewenang pengambil keputusan akhir dan bertanggung jawab penuh atas keberhasilan tugas tersebut",
+      "Semua anggota tim yang ikut membantu mengerjakan tugas teknis",
+      "Administrator yang mencatat notulensi rapat",
+    ],
+    correctIndex: 1,
+    explanation: "Accountable (A) adalah pemilik tanggung jawab akhir yang mengesahkan hasil pekerjaan. Dalam praktik terbaik RACI, hanya boleh ada satu 'Accountable' untuk setiap tugas.",
+    skillTag: "Project Planning",
+  },
 ];
 
 export function getDailyQuizForUser(careerId?: CareerId | null): FlashQuizQuestion[] {

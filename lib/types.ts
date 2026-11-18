@@ -6,7 +6,11 @@ export type CareerId =
   | "qa-engineer"
   | "business-analyst"
   | "data-analyst"
-  | "mobile-developer";
+  | "mobile-developer"
+  | "digital-marketer"
+  | "hr-specialist"
+  | "finance-analyst"
+  | "project-manager";
 
 export type ModuleType = "materi" | "praktik" | "proyek";
 

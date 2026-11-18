@@ -2,9 +2,13 @@ import {
   Bug,
   Code2,
   Database,
+  Kanban,
   LineChart,
+  Megaphone,
   Palette,
   Smartphone,
+  Users,
+  Wallet,
 } from "lucide-react";
 import type { Career, CareerId } from "@/lib/types";
 
@@ -915,6 +919,529 @@ export const careers: Career[] = [
             skill: "Flutter",
             resources: [
               { title: "Flutter – Build & release", url: "https://docs.flutter.dev/deployment/android" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "digital-marketer",
+    title: "Digital Marketing Specialist",
+    tagline: "Rancang strategi pemasaran kreatif, konten viral, dan iklan berkonversi tinggi.",
+    description:
+      "Digital Marketing Specialist bertanggung jawab membangun kesadaran merek (brand awareness), mendatangkan pelanggan baru, dan meningkatkan penjualan melalui kanal digital seperti Media Sosial, SEO, Google/Meta Ads, dan Content Marketing.",
+    icon: Megaphone,
+    level: "Ramah Pemula",
+    demand: "Sangat Tinggi",
+    skills: ["Copywriting", "Social Media Strategy", "SEO & Content", "Performance Ads", "Marketing Analytics"],
+    tools: ["Meta Ads Manager", "Google Analytics 4", "TikTok Creative Center", "Canva", "Google Search Console"],
+    salary: { min: 5, max: 12 },
+    duration: "3–6 bulan",
+    employers: ["Brand FMCG & Retail", "Agensi Digital & Kreatif", "E-commerce", "UMKM & Korporat"],
+    dayInLife: [
+      "Merancang kalender konten (Content Pillar) dan naskah copywriting untuk Instagram & TikTok",
+      "Memantau performa kampanye iklan berbayar (ROAS, CTR, CPA) di Meta & Google Ads",
+      "Melakukan riset kata kunci (keyword research) agar artikel berada di halaman 1 Google",
+      "Menganalisis laporan insight mingguan bersama tim brand dan kreatif",
+    ],
+    roadmap: [
+      {
+        id: "dm-p1",
+        title: "Fondasi Pemasaran & Copywriting",
+        description: "Pahami psikologi konsumen, marketing funnel, dan seni menulis persuasif.",
+        modules: [
+          {
+            id: "dm-m1",
+            title: "Dasar Digital Marketing & Marketing Funnel",
+            description: "Memahami perjalanan konsumen dari Awareness, Consideration, hingga Conversion.",
+            type: "materi",
+            hours: 5,
+            skill: "Copywriting",
+            resources: [
+              { title: "Google Digital Garage – Fundamentals of Digital Marketing", url: "https://skillshop.exceedlms.com/" },
+            ],
+          },
+          {
+            id: "dm-m2",
+            title: "Copywriting & Storytelling Persuasif",
+            description: "Formula AIDA, PAS, dan penulisan hook untuk iklan serta media sosial.",
+            type: "praktik",
+            hours: 8,
+            skill: "Copywriting",
+            resources: [
+              { title: "HubSpot – Copywriting Guide", url: "https://blog.hubspot.com/marketing/good-copywriting-practices-list" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "dm-p2",
+        title: "Media Sosial & SEO",
+        description: "Bangun pertumbuhan organik lewat konten media sosial dan mesin pencari.",
+        modules: [
+          {
+            id: "dm-m3",
+            title: "Social Media Management & Content Pillar",
+            description: "Menyusun strategi konten Instagram, TikTok, dan LinkedIn yang konsisten.",
+            type: "praktik",
+            hours: 10,
+            skill: "Social Media Strategy",
+            resources: [
+              { title: "Buffer – Social Media Marketing Guide", url: "https://buffer.com/library/social-media-marketing-strategy/" },
+            ],
+          },
+          {
+            id: "dm-m4",
+            title: "Search Engine Optimization (SEO) On-Page & Riset Keyword",
+            description: "Optimasi artikel dan halaman web agar mudah ditemukan di Google.",
+            type: "praktik",
+            hours: 10,
+            skill: "SEO & Content",
+            resources: [
+              { title: "Ahrefs – Beginner's Guide to SEO", url: "https://ahrefs.com/seo" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "dm-p3",
+        title: "Performance Marketing & Analitik",
+        description: "Kelola anggaran iklan digital dan ukur efektivitas kampanye.",
+        modules: [
+          {
+            id: "dm-m5",
+            title: "Meta Ads & Google Ads Fundamental",
+            description: "Targeting audiens, struktur kampanye, A/B testing kreatif, dan optimasi ROAS.",
+            type: "praktik",
+            hours: 12,
+            skill: "Performance Ads",
+            resources: [
+              { title: "Meta Blueprint Free Courses", url: "https://www.facebookblueprint.com/" },
+            ],
+          },
+          {
+            id: "dm-m6",
+            title: "Marketing Analytics & Google Analytics 4",
+            description: "Membaca metrik konversi, CTR, CPC, CAC, dan menyusun laporan performa.",
+            type: "materi",
+            hours: 8,
+            skill: "Marketing Analytics",
+            resources: [
+              { title: "Google Analytics Academy", url: "https://skillshop.docebosaas.com/" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "dm-p4",
+        title: "Proyek Portofolio",
+        description: "Rencana kampanye pemasaran digital terpadu.",
+        modules: [
+          {
+            id: "dm-m7",
+            title: "Proyek: Integrated Digital Campaign Plan 360°",
+            description: "Menyusun rencana peluncuran produk lengkap dengan kalender konten, alokasi budget ads, dan KPI.",
+            type: "proyek",
+            hours: 18,
+            skill: "Social Media Strategy",
+            resources: [
+              { title: "HubSpot Marketing Campaign Template", url: "https://www.hubspot.com/marketing-plan-template-generator" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "hr-specialist",
+    title: "HR & Talent Acquisition",
+    tagline: "Temukan talenta terbaik, bangun budaya kerja sehat, dan kembangkan potensi SDM.",
+    description:
+      "HR & Talent Acquisition Specialist berperan strategis dalam merekrut kandidat yang tepat, menyelenggarakan onboarding, mengelola hubungan industrial & administrasi karyawan, serta merancang sistem penilaian kinerja (Performance Appraisal).",
+    icon: Users,
+    level: "Ramah Pemula",
+    demand: "Tinggi",
+    skills: ["Recruitment & Selection", "Behavioral Interview", "Onboarding & Training", "Performance Management", "Employee Relations"],
+    tools: ["LinkedIn Recruiter", "Glints / JobStreet", "HRIS (Talenta / Mekari)", "Google Workspace", "Alat Tes Psikometri Dasar"],
+    salary: { min: 5, max: 11 },
+    duration: "3–6 bulan",
+    employers: ["Semua Industri Korporat", "Perusahaan Manufaktur & FMCG", "Konsultan SDM / Headhunter", "Startup & Perbankan"],
+    dayInLife: [
+      "Menyusun Job Description dan menyaring ratusan CV pelamar (CV Screening)",
+      "Melakukan wawancara HR berbasis kompetensi (Metode STAR) dengan kandidat",
+      "Menyambut karyawan baru dalam sesi Onboarding dan pengenalan budaya perusahaan",
+      "Mengelola administrasi HRIS, evaluasi KPI karyawan, dan kegiatan employee engagement",
+    ],
+    roadmap: [
+      {
+        id: "hr-p1",
+        title: "Fondasi Manajemen SDM & Rekrutmen",
+        description: "Pahami siklus hidup karyawan (Employee Lifecycle) dan proses rekrutmen end-to-end.",
+        modules: [
+          {
+            id: "hr-m1",
+            title: "Pengantar Human Resources & Employee Lifecycle",
+            description: "Peran HR modern: dari perencanaan tenaga kerja hingga offboarding.",
+            type: "materi",
+            hours: 5,
+            skill: "Recruitment & Selection",
+            resources: [
+              { title: "AIHR – What is Human Resources", url: "https://www.aihr.com/blog/what-is-human-resources/" },
+            ],
+          },
+          {
+            id: "hr-m2",
+            title: "Job Analysis, Job Description & CV Screening",
+            description: "Merumuskan kualifikasi jabatan yang tepat dan teknik menyaring resume secara objektif.",
+            type: "praktik",
+            hours: 8,
+            skill: "Recruitment & Selection",
+            resources: [
+              { title: "SHRM – How to Develop a Job Description", url: "https://www.shrm.org/" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "hr-p2",
+        title: "Teknik Wawancara & Seleksi",
+        description: "Gali kompetensi kandidat secara akurat dan bebas bias.",
+        modules: [
+          {
+            id: "hr-m3",
+            title: "Behavioral Event Interview (BEI) & Metode STAR",
+            description: "Menyusun daftar pertanyaan wawancara berbasis perilaku dan rubrik penilaian kandidat.",
+            type: "praktik",
+            hours: 10,
+            skill: "Behavioral Interview",
+            resources: [
+              { title: "Workable – Structured Interview Guide", url: "https://resources.workable.com/tutorial/structured-interviews" },
+            ],
+          },
+          {
+            id: "hr-m4",
+            title: "Employer Branding & Onboarding Karyawan Baru",
+            description: "Membangun citra perusahaan di mata pencari kerja dan program orientasi 90 hari pertama.",
+            type: "materi",
+            hours: 6,
+            skill: "Onboarding & Training",
+            resources: [
+              { title: "BambooHR – New Hire Onboarding Guide", url: "https://www.bamboohr.com/resources/guides/onboarding" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "hr-p3",
+        title: "Kinerja, Pelatihan & Hubungan Industrial",
+        description: "Kelola performa tim dan kepatuhan regulasi ketenagakerjaan.",
+        modules: [
+          {
+            id: "hr-m5",
+            title: "Performance Management (KPI & OKR)",
+            description: "Merancang indikator kinerja utama dan evaluasi performa berkala.",
+            type: "praktik",
+            hours: 8,
+            skill: "Performance Management",
+            resources: [
+              { title: "Lattice – Performance Management Guide", url: "https://lattice.com/library" },
+            ],
+          },
+          {
+            id: "hr-m6",
+            title: "Dasar Hukum Ketenagakerjaan Indonesia & Administrasi HRIS",
+            description: "Memahami PKWT/PKWTT, BPJS, cuti, dan pengelolaan database karyawan.",
+            type: "materi",
+            hours: 8,
+            skill: "Employee Relations",
+            resources: [
+              { title: "Mekari Talenta – Panduan HR & Regulasi", url: "https://www.talenta.co/blog/" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "hr-p4",
+        title: "Proyek Portofolio",
+        description: "Dokumen rekrutmen dan matriks penilaian kandidat siap pakai.",
+        modules: [
+          {
+            id: "hr-m7",
+            title: "Proyek: End-to-End Recruitment Kit & Interview Scorecard",
+            description: "Menyusun paket rekrutmen lengkap: Job Desc, matriks screening, panduan wawancara STAR, dan evaluasi kandidat.",
+            type: "proyek",
+            hours: 16,
+            skill: "Behavioral Interview",
+            resources: [
+              { title: "SmartRecruiters – Hiring Scorecard Guide", url: "https://www.smartrecruiters.com/resources/glossary/interview-scorecard/" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "finance-analyst",
+    title: "Finance & Accounting Analyst",
+    tagline: "Kelola kesehatan finansial, susun anggaran strategis, dan analisis profitabilitas bisnis.",
+    description:
+      "Finance & Accounting Analyst bertugas mencatat dan menganalisis laporan keuangan (Laba Rugi, Neraca, Arus Kas), menyusun proyeksi anggaran (budgeting & forecasting), mengevaluasi efisiensi biaya, serta memastikan kepatuhan pajak perusahaan.",
+    icon: Wallet,
+    level: "Ramah Pemula",
+    demand: "Sangat Tinggi",
+    skills: ["Financial Accounting", "Spreadsheet & Excel Modeling", "Budgeting & Forecasting", "Cash Flow Analysis", "Taxation & Compliance"],
+    tools: ["Microsoft Excel / Google Sheets", "Accurate / Jurnal.id", "SAP / ERP", "Power BI", "DJP Online (e-Faktur/e-Bupot)"],
+    salary: { min: 5.5, max: 13 },
+    duration: "4–8 bulan",
+    employers: ["Perbankan & Lembaga Keuangan", "KAP & Konsultan Pajak", "FMCG & Manufaktur", "Perusahaan Ritel & Korporat"],
+    dayInLife: [
+      "Memeriksa jurnal transaksi harian, invoice vendor, dan rekonsiliasi rekening bank",
+      "Menyusun laporan keuangan bulanan (Income Statement, Balance Sheet, Cash Flow)",
+      "Menganalisis selisih anggaran (Budget vs Actual Variance) tiap departemen",
+      "Menyiapkan proyeksi keuangan di Excel untuk mendukung keputusan ekspansi manajemen",
+    ],
+    roadmap: [
+      {
+        id: "fa-p1",
+        title: "Fondasi Akuntansi & Laporan Keuangan",
+        description: "Kuasai siklus akuntansi dan cara membaca tiga laporan keuangan utama.",
+        modules: [
+          {
+            id: "fa-m1",
+            title: "Prinsip Dasar Akuntansi & Siklus Jurnal",
+            description: "Persamaan dasar akuntansi, debit-kredit, jurnal umum, buku besar, dan neraca saldo.",
+            type: "materi",
+            hours: 8,
+            skill: "Financial Accounting",
+            resources: [
+              { title: "AccountingCoach – Accounting Basics", url: "https://www.accountingcoach.com/" },
+            ],
+          },
+          {
+            id: "fa-m2",
+            title: "Membedah Laporan Laba Rugi, Neraca, & Arus Kas",
+            description: "Hubungan antara Income Statement, Balance Sheet, dan Cash Flow Statement.",
+            type: "praktik",
+            hours: 10,
+            skill: "Financial Accounting",
+            resources: [
+              { title: "Corporate Finance Institute (CFI) – Reading Financial Statements", url: "https://corporatefinanceinstitute.com/" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "fa-p2",
+        title: "Excel Finansial & Analisis Rasio",
+        description: "Olahan angka cepat dan akurat untuk menilai kesehatan perusahaan.",
+        modules: [
+          {
+            id: "fa-m3",
+            title: "Excel & Spreadsheet untuk Finance",
+            description: "INDEX-MATCH/XLOOKUP, Pivot Table, fungsi finansial (NPV, IRR, PMT), dan otomatisasi laporan.",
+            type: "praktik",
+            hours: 10,
+            skill: "Spreadsheet & Excel Modeling",
+            resources: [
+              { title: "ExcelJet – Financial Functions", url: "https://exceljet.net/" },
+            ],
+          },
+          {
+            id: "fa-m4",
+            title: "Analisis Rasio Keuangan & Arus Kas",
+            description: "Rasio likuiditas, profitabilitas (Gross/Net Margin, ROE), solvabilitas, dan working capital.",
+            type: "praktik",
+            hours: 8,
+            skill: "Cash Flow Analysis",
+            resources: [
+              { title: "Investopedia – Financial Ratio Analysis", url: "https://www.investopedia.com/financial-edge/0910/6-basic-financial-ratios-and-what-they-tell-you.aspx" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "fa-p3",
+        title: "Budgeting, Forecasting & Perpajakan",
+        description: "Rencanakan anggaran masa depan dan pahami kewajiban perpajakan bisnis di Indonesia.",
+        modules: [
+          {
+            id: "fa-m5",
+            title: "Corporate Budgeting & Variance Analysis",
+            description: "Menyusun anggaran tahunan (OPEX & CAPEX) dan mengevaluasi selisih realisasi vs target.",
+            type: "praktik",
+            hours: 10,
+            skill: "Budgeting & Forecasting",
+            resources: [
+              { title: "CFI – Budgeting and Forecasting", url: "https://corporatefinanceinstitute.com/resources/fpa/" },
+            ],
+          },
+          {
+            id: "fa-m6",
+            title: "Dasar Perpajakan Perusahaan di Indonesia",
+            description: "Pengenalan PPh 21, PPh 23, PPh Final UMKM/Badan, dan PPN.",
+            type: "materi",
+            hours: 8,
+            skill: "Taxation & Compliance",
+            resources: [
+              { title: "Klikpajak – Panduan Pajak Perusahaan", url: "https://klikpajak.id/blog/" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "fa-p4",
+        title: "Proyek Portofolio",
+        description: "Model proyeksi keuangan dan rekomendasi efisiensi biaya.",
+        modules: [
+          {
+            id: "fa-m7",
+            title: "Proyek: Financial Health Check & Budget Forecast Model",
+            description: "Menganalisis laporan keuangan perusahaan ritel, menemukan kebocoran biaya, dan membuat proyeksi 12 bulan.",
+            type: "proyek",
+            hours: 20,
+            skill: "Budgeting & Forecasting",
+            resources: [
+              { title: "CFI Financial Modeling Best Practices", url: "https://corporatefinanceinstitute.com/resources/financial-modeling/" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "project-manager",
+    title: "Project & Operations Manager",
+    tagline: "Pimpin eksekusi proyek lintas tim agar selesai tepat waktu, sesuai anggaran, dan berdampak nyata.",
+    description:
+      "Project & Operations Manager merencanakan ruang lingkup proyek, menyusun jadwal (timeline), membagi beban kerja tim, memitigasi risiko operasional, dan memastikan seluruh pemangku kepentingan (stakeholder) bergerak selaras mencapai target.",
+    icon: Kanban,
+    level: "Menengah",
+    demand: "Tinggi",
+    skills: ["Project Planning", "Risk & Issue Management", "Stakeholder Communication", "Agile & Waterfall", "Operations Optimization"],
+    tools: ["Trello / Asana", "Jira / Notion", "Microsoft Project / Gantt Chart", "Google Sheets", "Slack / Microsoft Teams"],
+    salary: { min: 6, max: 15 },
+    duration: "4–8 bulan",
+    employers: ["Logistik & Supply Chain", "Konstruksi & Infrastruktur", "Konsultan Manajemen", "Perusahaan Teknologi & Perbankan"],
+    dayInLife: [
+      "Memimpin rapat koordinasi harian/mingguan untuk mengecek progres dan hambatan (blocker) tim",
+      "Memperbarui Project Timeline (Gantt Chart), alokasi sumber daya, dan serapan anggaran",
+      "Mengidentifikasi risiko keterlambatan vendor/operasional serta menyiapkan rencana mitigasi",
+      "Melaporkan status pencapaian milestone proyek kepada jajaran manajemen dan klien",
+    ],
+    roadmap: [
+      {
+        id: "pm-p1",
+        title: "Fondasi Manajemen Proyek",
+        description: "Kuasai siklus proyek dari inisiasi hingga penutupan (Project Lifecycle).",
+        modules: [
+          {
+            id: "pm-m1",
+            title: "Siklus Hidup Proyek & Peran Project Manager",
+            description: "Initiation, Planning, Execution, Monitoring, dan Closing beserta Triple Constraint (Scope, Time, Cost).",
+            type: "materi",
+            hours: 6,
+            skill: "Project Planning",
+            resources: [
+              { title: "PMI – What is Project Management", url: "https://www.pmi.org/about/learn-about-pmi/what-is-project-management" },
+            ],
+          },
+          {
+            id: "pm-m2",
+            title: "Menyusun Project Charter & Work Breakdown Structure (WBS)",
+            description: "Mendefinisikan tujuan proyek, ruang lingkup (in-scope/out-of-scope), dan memecah paket kerja.",
+            type: "praktik",
+            hours: 8,
+            skill: "Project Planning",
+            resources: [
+              { title: "Asana – Guide to Project Charters & WBS", url: "https://asana.com/resources/project-charter" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "pm-p2",
+        title: "Penjadwalan, Metodologi & Operasional",
+        description: "Kelola alur kerja dengan pendekatan Waterfall, Agile, dan Lean Operations.",
+        modules: [
+          {
+            id: "pm-m3",
+            title: "Project Scheduling, Gantt Chart & Critical Path",
+            description: "Menentukan dependensi antar tugas, estimasi durasi, dan jalur kritis proyek.",
+            type: "praktik",
+            hours: 8,
+            skill: "Project Planning",
+            resources: [
+              { title: "Atlassian – Gantt Chart & Timeline Guide", url: "https://www.atlassian.com/agile/project-management/gantt-chart" },
+            ],
+          },
+          {
+            id: "pm-m4",
+            title: "Metodologi Agile, Scrum & Kanban untuk Eksekusi Tim",
+            description: "Mengatur sprint, papan Kanban, daily stand-up, dan retrospective.",
+            type: "materi",
+            hours: 6,
+            skill: "Agile & Waterfall",
+            resources: [
+              { title: "Scrum Guide Bahasa Indonesia", url: "https://scrumguides.org/" },
+            ],
+          },
+          {
+            id: "pm-m5",
+            title: "Standarisasi SOP & Efisiensi Operasional (Lean)",
+            description: "Menghilangkan bottleneck operasional dan menyusun Standard Operating Procedure (SOP).",
+            type: "praktik",
+            hours: 8,
+            skill: "Operations Optimization",
+            resources: [
+              { title: "Lean Enterprise Institute – What is Lean", url: "https://www.lean.org/explore-lean/what-is-lean/" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "pm-p3",
+        title: "Manajemen Risiko & Komunikasi Stakeholder",
+        description: "Antisipasi masalah sebelum terjadi dan jaga keselarasan lintas pihak.",
+        modules: [
+          {
+            id: "pm-m6",
+            title: "Risk Register & Mitigasi Krisis Proyek",
+            description: "Mengukur probabilitas dan dampak risiko serta menyusun rencana kontingensi.",
+            type: "praktik",
+            hours: 8,
+            skill: "Risk & Issue Management",
+            resources: [
+              { title: "ProjectManager – Risk Matrix Guide", url: "https://www.projectmanager.com/blog/risk-matrix" },
+            ],
+          },
+          {
+            id: "pm-m7",
+            title: "Matriks RACI & Komunikasi Eksekutif",
+            description: "Membagi tanggung jawab (Responsible, Accountable, Consulted, Informed) dan laporan status proyek.",
+            type: "materi",
+            hours: 6,
+            skill: "Stakeholder Communication",
+            resources: [
+              { title: "Atlassian – RACI Chart Guide", url: "https://www.atlassian.com/work-management/project-management/raci-chart" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "pm-p4",
+        title: "Proyek Portofolio",
+        description: "Dokumen perencanaan dan pengendalian proyek komprehensif.",
+        modules: [
+          {
+            id: "pm-m8",
+            title: "Proyek: Master Project Plan, RACI & Risk Register",
+            description: "Menyusun dokumen Project Charter, WBS, jadwal 8 minggu, matriks RACI, dan Risk Register untuk ekspansi cabang.",
+            type: "proyek",
+            hours: 18,
+            skill: "Risk & Issue Management",
+            resources: [
+              { title: "Smartsheet – Project Management Templates", url: "https://www.smartsheet.com/top-project-management-excel-templates" },
             ],
           },
         ],
